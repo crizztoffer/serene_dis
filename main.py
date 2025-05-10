@@ -4,17 +4,12 @@ from mcrcon import MCRcon
 import discord
 import requests
 
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
-RCON_HOST = os.getenv("RCON_HOST")
-RCON_PORT = int(os.getenv("RCON_PORT"))
-RCON_PASSWORD = os.getenv("RCON_PASSWORD")
-
 # Function to send a message to Discord using a webhook
 def send_to_discord_webhook(username, content, avatar_url=None):
-    if not WEBHOOK_URL:
-        print("Webhook URL not set in environment variables.")
+    webhook_url = os.getenv("WEBHOOK_URL")  # move inside the function
+
+    if not webhook_url:
+        print("❌ Webhook URL not set in environment variables.")
         return
 
     payload = {
@@ -25,18 +20,27 @@ def send_to_discord_webhook(username, content, avatar_url=None):
     if avatar_url:
         payload["avatar_url"] = avatar_url
 
-    response = requests.post(WEBHOOK_URL, json=payload)
+    response = requests.post(webhook_url, json=payload)
 
     if response.status_code != 204:
-        print(f"Failed to send to Discord: {response.status_code} - {response.text}")
+        print(f"❌ Failed to send to Discord: {response.status_code} - {response.text}")
 
 # Main loop to poll Ark chat and detect join/leave/server messages
 async def ark_chat_listener():
     previous_lines = set()
 
+    # Move env var loading here
+    rcon_host = os.getenv("RCON_HOST")
+    rcon_port = int(os.getenv("RCON_PORT", "0"))
+    rcon_password = os.getenv("RCON_PASSWORD")
+
+    if not all([rcon_host, rcon_port, rcon_password]):
+        print("❌ Missing one or more RCON environment variables.")
+        return
+
     while True:
         try:
-            with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
+            with MCRcon(rcon_host, rcon_password, port=rcon_port) as mcr:
                 response = mcr.command("GetChat")
                 lines = response.split("\n")
 
@@ -62,7 +66,7 @@ async def ark_chat_listener():
                         )
 
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"🔥 Error: {e}")
 
         await asyncio.sleep(10)
 
