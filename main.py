@@ -5,7 +5,7 @@ import discord
 import requests
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 RCON_HOST = os.getenv("RCON_HOST")
 RCON_PORT = int(os.getenv("RCON_PORT"))
