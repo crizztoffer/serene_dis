@@ -4,11 +4,11 @@ from ark_rcon import ArkRcon
 import discord
 
 # Load environment variables
-DISCORD_TOKEN = os.getenv("MTAzMDg2NDIwODc0Njc4Njg3Nw.G8XTH_.GnJUuDkuFdum8twRR2cgRdCDbSmIXSQNccsO1c")
-CHANNEL_ID = int(os.getenv("885816395709968404"))
-RCON_HOST = os.getenv("172.240.67.110")
-RCON_PORT = int(os.getenv("27020"))
-RCON_PASSWORD = os.getenv("Yahgh1yo!")
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
+RCON_HOST = os.getenv("RCON_HOST")
+RCON_PORT = int(os.getenv("RCON_PORT"))
+RCON_PASSWORD = os.getenv("RCON_PASSWORD")
 
 # Set up Discord client with message intents
 intents = discord.Intents.default()
