@@ -6,11 +6,7 @@ import requests
 
 # Function to send a message to Discord using a webhook
 def send_to_discord_webhook(username, content, avatar_url=None):
-    webhook_url = os.getenv("WEBHOOK_URL")  # move inside the function
-
-    if not webhook_url:
-        print("❌ Webhook URL not set in environment variables.")
-        return
+    webhook_url = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 
     payload = {
         "username": username,
@@ -29,7 +25,6 @@ def send_to_discord_webhook(username, content, avatar_url=None):
 async def ark_chat_listener():
     previous_lines = set()
 
-    # Move env var loading here
     rcon_host = os.getenv("RCON_HOST")
     rcon_port = int(os.getenv("RCON_PORT", "0"))
     rcon_password = os.getenv("RCON_PASSWORD")
