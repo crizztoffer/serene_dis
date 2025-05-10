@@ -19,7 +19,7 @@ RCON_PASSWORD = os.getenv("RCON_PASSWORD")
 
 # Function to send messages to Discord via webhook
 def send_to_discord_webhook(username, content, avatar_url=None):
-    if content.startswith("[DC]"):
+    if content.startswith("(Discord)"):
         return  # Prevent echo loops
 
     if not avatar_url:
@@ -101,7 +101,7 @@ async def on_message(message):
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
                 player_name = message.author.display_name
-                msg = f"[DC] {player_name}: {message.content}"
+                msg = f"(Discord) {player_name}: {message.content}"
                 mcr.command(f"broadcast {msg}")
         except Exception as e:
             print(f"🔥 Failed to send message to Ark: {e}")
