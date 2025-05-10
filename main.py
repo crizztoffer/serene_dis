@@ -67,15 +67,20 @@ async def ark_chat_listener():
 # Discord → Ark chat relay
 @client.event
 async def on_message(message):
+    # Ignore messages sent by the bot itself
     if message.author.bot:
         return
+
+    # Make sure the message is from the correct channel
     if message.channel.id != DISCORD_CHANNEL_ID:
         return
 
+    # Prepare the message content
     content = f"{message.author.display_name}: {message.content}"
     print(f"💬 Sending to Ark: {content}")
 
     try:
+        # Send the message to the Ark server via RCON
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
             mcr.command(f"ServerChat {content}")
     except Exception as e:
