@@ -22,7 +22,7 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 # Webhook sender
-def send_to_discord_webhook(username, content):
+def send_to_discord_webhook(username, content, avatar_url):
     payload = {
         "username": username,
         "content": content,
