@@ -58,7 +58,7 @@ async def ark_chat_listener():
                         clean_msg = msg.strip()
 
                         # Ensure username is just the player's name, no duplication
-                        clean_name = clean_name.split("(")[0].strip()
+                        clean_name = clean_name.split("(")[0].strip()  # Remove any extraneous parts
 
                         print(f"Ark message - Name: {clean_name}, Message: {clean_msg}")  # Debug print for Ark message
                         # Send to Discord
