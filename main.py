@@ -25,7 +25,6 @@ intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 
-
 def get_ark_chat():
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
@@ -34,14 +33,12 @@ def get_ark_chat():
     except Exception:
         return ""
 
-
 def send_to_ark_chat(message):
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
             mcr.command(f'serverchat {message}')
     except Exception:
         pass
-
 
 def fetch_log_file():
     try:
@@ -55,7 +52,6 @@ def fetch_log_file():
     except Exception:
         pass
 
-
 def monitor_log():
     fetch_log_file()
     if not os.path.exists("ShooterGame.log"):
@@ -67,11 +63,9 @@ def monitor_log():
             return lines[-1].strip()
     return ""
 
-
 @client.event
 async def on_ready():
     asyncio.create_task(poll_ark_chat())
-
 
 @client.event
 async def on_message(message):
@@ -83,8 +77,12 @@ async def on_message(message):
     display_name = message.author.display_name
     content = message.content.strip()
 
-    # Final message format: Discord: Username: Message
-    formatted_for_ark = f"Discord: {display_name}: {content}"
+    # Final message format: Discord: Username: Message with ARK color formatting
+    formatted_for_ark = (
+        f'<RichColor Color="0.5,0,0.5,1">Discord</>'
+        f': <RichColor Color="0.2,0.4,0.8,1">{display_name}</>'
+        f': <RichColor Color="1,1,1,1">{content}</>'
+    )
 
     if formatted_for_ark != last_ark_message:
         send_to_ark_chat(formatted_for_ark)
@@ -95,7 +93,6 @@ async def on_message(message):
         pass
     else:
         pass
-
 
 async def poll_ark_chat():
     global last_ark_message, last_discord_message
@@ -112,6 +109,5 @@ async def poll_ark_chat():
                 pass
 
         await asyncio.sleep(5)
-
 
 client.run(DISCORD_TOKEN)
