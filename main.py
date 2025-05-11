@@ -21,10 +21,18 @@ intents.message_content = True
 
 client = discord.Client(intents=intents)
 
+# Globals to track last Discord message sent to prevent echo
+last_discord_username = None
+last_discord_message = None
+
 # Send message to Discord webhook
 def send_to_discord_webhook(username, content, avatar_url=None):
     # Ignore messages from Discord users to avoid echo loop
-    if username.endswith("(Discord)"):
+    global last_discord_username, last_discord_message
+    if (
+        username.strip() == last_discord_username and
+        content.strip() == last_discord_message
+    ):
         return
 
     if not avatar_url:
@@ -56,8 +64,6 @@ async def ark_chat_listener():
 
                     if ": " in line:
                         name, message = line.split(": ", 1)
-                        if name.strip().endswith("(Discord)"):
-                            continue
                         send_to_discord_webhook(name.strip(), message.strip())
 
                     elif any(kw in line.lower() for kw in ["joined", "left", "disconnected", "connected"]):
@@ -73,16 +79,22 @@ async def ark_chat_listener():
 # Relay messages from Discord → Ark
 @client.event
 async def on_message(message):
+    global last_discord_username, last_discord_message
+
     if message.author.bot:
         return
     if message.channel.id != DISCORD_CHANNEL_ID:
         return
 
-    content = f"{message.author.display_name} (Discord): {message.content}"
-    print(f"💬 Sending to Ark: {content}")
+    last_discord_username = f"{message.author.display_name} (Discord)"
+    last_discord_message = message.content.strip()
+
+    full_message = f"{last_discord_username}: {last_discord_message}"
+    print(f"💬 Sending to Ark: {full_message}")
+
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-            mcr.command(f"ServerChat {content}")
+            mcr.command(f"ServerChat {full_message}")
     except Exception as e:
         print(f"🔥 Failed to send to Ark: {e}")
 
