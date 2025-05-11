@@ -75,6 +75,7 @@ async def send_ark_message_to_discord(username, message):
     # Send the formatted message to Discord
     channel = client.get_channel(DISCORD_CHANNEL_ID)
     await channel.send(discord_message, avatar_url="https://serenekeks.com/dis_ark.png")
+    print(f"Sent message to Discord: {discord_message}")  # Debug print
 
 
 @client.event
@@ -91,8 +92,11 @@ async def on_message(message):
     if message.author == client.user:
         return
 
+    print(f"Received message from Discord: {message.content}")  # Debug print
+
     # If the message is from Discord, check if it contains "Ark: Survival Evolved"
     if "- (Ark: Survival Evolved):" in message.content:
+        print(f"Skipping message (already formatted): {message.content}")  # Debug print
         return  # Do nothing if the message is already in the correct format
 
     # If it's a new message from Discord, send it to Ark
@@ -104,12 +108,14 @@ async def on_message(message):
         formatted_for_ark = f"Discord: {display_name}: {content}"
 
         if formatted_for_ark != last_ark_message:
+            print(f"Sending to Ark: {formatted_for_ark}")  # Debug print
             send_to_ark_chat(formatted_for_ark)
             last_discord_message = formatted_for_ark
 
     # If the message is from Ark (detected via log file), send it to Discord
     current_ark_message = monitor_log()
     if current_ark_message and current_ark_message != last_ark_message:
+        print(f"Received Ark message: {current_ark_message}")  # Debug print
         last_ark_message = current_ark_message
 
         if "Discord:" not in current_ark_message:  # Ensure we don't send Discord messages back to Discord
@@ -118,6 +124,8 @@ async def on_message(message):
             if len(parts) == 2:
                 username, message = parts
                 await send_ark_message_to_discord(username, message)
+            else:
+                print(f"Failed to split Ark message: {current_ark_message}")  # Debug print
 
 
 client.run(DISCORD_TOKEN)
