@@ -4,10 +4,10 @@ import requests
 from mcrcon import MCRcon
 import discord
 
-# Constants
+# Webhook URL
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 
-# Env Vars
+# Env variables from Railway
 RCON_HOST = os.getenv("RCON_HOST")
 RCON_PORT = int(os.getenv("RCON_PORT", "0"))
 RCON_PASSWORD = os.getenv("RCON_PASSWORD")
@@ -19,10 +19,16 @@ intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 
-# --- Function: Send to Discord via Webhook ---
+# Internal state to prevent echo
+last_discord_message = {"content": "", "username": ""}
+
+# --- Send to Discord via Webhook ---
 def send_to_discord_webhook(username, content, avatar_url=None):
-    if username.endswith("(Discord):"):
-        return  # prevent loops from Discord-origin messages
+    global last_discord_message
+
+    # Skip if this message matches the last sent from Discord
+    if username == last_discord_message["username"] and content == last_discord_message["content"]:
+        return
 
     if not avatar_url:
         avatar_url = "https://serenekeks.com/dis_ark.png"
@@ -37,14 +43,15 @@ def send_to_discord_webhook(username, content, avatar_url=None):
     if response.status_code not in [200, 204]:
         print(f"❌ Failed to send to Discord: {response.status_code} - {response.text}")
 
-# --- Function: Listen for Ark Chat ---
+# --- Read Ark Chat and Send to Discord ---
 async def ark_chat_listener():
     seen_lines = set()
+
     while True:
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-                chat_output = mcr.command("GetChat")
-                lines = chat_output.split("\n")
+                chat = mcr.command("GetChat")
+                lines = chat.split("\n")
 
                 for line in lines:
                     if line in seen_lines:
@@ -53,11 +60,9 @@ async def ark_chat_listener():
 
                     if ": " in line:
                         name, msg = line.split(": ", 1)
-                        if name.strip().endswith("(Discord):"):
-                            continue  # Don't echo Discord messages
                         send_to_discord_webhook(name.strip(), msg.strip())
 
-                    elif any(x in line.lower() for x in ["joined", "left", "disconnected", "connected"]):
+                    elif any(event in line.lower() for event in ["joined", "left", "disconnected", "connected"]):
                         send_to_discord_webhook(
                             username="Serene Branson",
                             content=line.strip(),
@@ -65,24 +70,30 @@ async def ark_chat_listener():
                         )
 
         except Exception as e:
-            print(f"🔥 RCON error: {e}")
-
+            print(f"🔥 RCON read error: {e}")
         await asyncio.sleep(10)
 
-# --- Function: Discord Message Handler ---
+# --- Relay from Discord → Ark ---
 @client.event
 async def on_message(message):
+    global last_discord_message
+
     if message.author.bot or message.channel.id != DISCORD_CHANNEL_ID:
         return
 
-    player_name = f"{message.author.display_name} (Discord):"
+    username = f"{message.author.display_name} (Discord):"
+    content = message.content.strip()
+
+    last_discord_message["username"] = username
+    last_discord_message["content"] = content
+
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-            mcr.command(f'ServerChat {player_name} {message.content}')
+            mcr.command(f"ServerChat {username} {content}")
     except Exception as e:
         print(f"🔥 Error sending to Ark: {e}")
 
-# --- Main Runner ---
+# --- Start Bot ---
 async def main():
     await asyncio.gather(
         ark_chat_listener(),
