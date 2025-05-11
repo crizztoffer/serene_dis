@@ -1,6 +1,5 @@
 import asyncio
 import os
-import time
 import discord
 from mcrcon import MCRcon
 import paramiko
@@ -32,17 +31,18 @@ def get_ark_chat():
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
             result = mcr.command("getchat")
             return result.strip()
-    except Exception as e:
-        print(f"Ark chat fetch error: {e}")
+    except Exception:
         return ""
 
 
 def send_to_ark_chat(message):
     try:
+        # Prepend "Discord" to the message instead of "Server"
+        padded_message = f"Discord {message}"  # No "- (Discord):", just "Discord"
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-            mcr.command(f'serverchat {message}')
-    except Exception as e:
-        print(f"Ark send error: {e}")
+            mcr.command(f'serverchat {padded_message}')
+    except Exception:
+        pass
 
 
 def fetch_log_file():
@@ -54,16 +54,13 @@ def fetch_log_file():
         sftp.get(LOG_FILE_PATH, "ShooterGame.log")  # Save locally
         sftp.close()
         transport.close()
-
-        print("Log file fetched successfully via SFTP.")
-    except Exception as e:
-        print(f"SFTP error: {e}")
+    except Exception:
+        pass
 
 
 def monitor_log():
     fetch_log_file()
     if not os.path.exists("ShooterGame.log"):
-        print("Log file not found.")
         return ""
 
     with open("ShooterGame.log", "r", encoding="utf-8", errors="ignore") as f:
@@ -75,7 +72,6 @@ def monitor_log():
 
 @client.event
 async def on_ready():
-    print("Bot is ready.")
     asyncio.create_task(poll_ark_chat())
 
 
@@ -88,23 +84,21 @@ async def on_message(message):
 
     display_name = message.author.display_name
     content = message.content.strip()
-    print(f"[DISCORD] {display_name}: {content}")
 
-    formatted = f"{display_name} - (Discord): {content}"
-    formatted_for_ark = formatted.replace("Server: ", "")
+    # Format: "Discord {display_name}: {content}" without the " - (Discord):"
+    formatted = f"Discord {display_name}: {content}"
+    formatted_for_ark = formatted.replace("Server: ", "")  # Ensure "Server: " isn't in the message
 
+    # Prevent reposting the same message back to Ark
     if formatted_for_ark != last_ark_message:
         send_to_ark_chat(formatted_for_ark)
         last_discord_message = formatted_for_ark
-    else:
-        print("[SKIP] Message from Discord matches last Ark message. Skipping repost.")
 
     current_ark_message = monitor_log()
     if last_discord_message == current_ark_message:
-        print(f"[MATCH] Discord and Ark message: '{last_discord_message}'")
+        pass
     else:
-        print(f"[DIFFERENT] Discord: '{last_discord_message}'")
-        print(f"[DIFFERENT] Ark:     '{current_ark_message}'")
+        pass
 
 
 async def poll_ark_chat():
@@ -117,11 +111,9 @@ async def poll_ark_chat():
             last_ark_message = current_ark_message
 
             if current_ark_message == last_discord_message:
-                print(f"[MATCH] Ark and Discord message: '{current_ark_message}'")
+                pass
             else:
-                print(f"[DIFFERENT] Ark:     '{current_ark_message}'")
-                print(f"[DIFFERENT] Discord: '{last_discord_message}'")
-                # Optionally, send to Discord
+                pass
 
         await asyncio.sleep(5)
 
