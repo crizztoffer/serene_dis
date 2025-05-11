@@ -31,7 +31,8 @@ def get_ark_chat():
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
             result = mcr.command("getchat")
             return result.strip()
-    except Exception:
+    except Exception as e:
+        print(f"Error getting Ark chat: {e}")
         return ""
 
 
@@ -39,7 +40,8 @@ def send_to_ark_chat(message):
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
             mcr.command(f'serverchat {message}')
-    except Exception:
+    except Exception as e:
+        print(f"Error sending to Ark chat: {e}")
         pass
 
 
@@ -52,13 +54,14 @@ def fetch_log_file():
         sftp.get(LOG_FILE_PATH, "ShooterGame.log")  # Save locally
         sftp.close()
         transport.close()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error fetching log file: {e}")
 
 
 def monitor_log():
     fetch_log_file()
     if not os.path.exists("ShooterGame.log"):
+        print("Log file not found.")
         return ""
 
     with open("ShooterGame.log", "r", encoding="utf-8", errors="ignore") as f:
@@ -74,8 +77,11 @@ async def send_ark_message_to_discord(username, message):
     
     # Send the formatted message to Discord
     channel = client.get_channel(DISCORD_CHANNEL_ID)
-    await channel.send(discord_message, avatar_url="https://serenekeks.com/dis_ark.png")
-    print(f"Sent message to Discord: {discord_message}")  # Debug print
+    if channel:
+        await channel.send(discord_message, avatar_url="https://serenekeks.com/dis_ark.png")
+        print(f"Sent message to Discord: {discord_message}")  # Debug print
+    else:
+        print("Error: Discord channel not found.")  # Debug print
 
 
 @client.event
@@ -119,8 +125,11 @@ async def on_message(message):
         last_ark_message = current_ark_message
 
         if "Discord:" not in current_ark_message:  # Ensure we don't send Discord messages back to Discord
+            # Remove the "SERVER: Discord:" part from the Ark message
+            clean_message = current_ark_message.split("Discord: ", 1)[-1] if "Discord: " in current_ark_message else current_ark_message
+
             # Split the Ark message into Username and Message
-            parts = current_ark_message.split(": ", 1)
+            parts = clean_message.split(": ", 1)
             if len(parts) == 2:
                 username, message = parts
                 await send_ark_message_to_discord(username, message)
