@@ -18,12 +18,21 @@ RCON_PASSWORD = os.getenv("RCON_PASSWORD")
 
 
 # Function to send messages to Discord via webhook
-def send_to_discord_webhook(username, content, avatar_url=None):
-    if content.startswith("(Discord)"):
-        return  # Prevent echo loops
+def send_to_discord_webhook(player_name, content, avatar_url=None, is_system=False):
+    if "(Discord)" in content:
+        return  # Prevent loopback of Discord-to-Ark messages
 
     if not avatar_url:
         avatar_url = "https://serenekeks.com/dis_ark.png"
+
+    if is_system:
+        username = "Serene Branson"
+    else:
+        username = "Ark: Survival Evolved"
+
+    # Format player message with their name
+    if not is_system:
+        content = f"**{player_name}** - Ark: Survival Evolved: {content}"
 
     payload = {
         "username": username,
@@ -55,20 +64,25 @@ async def ark_chat_listener():
                         continue
                     previous_lines.add(line)
 
+                    # Skip messages from Discord bot
+                    if "(Discord)" in line:
+                        continue
+
                     # Player chat
                     if ": " in line:
                         name, message = line.split(": ", 1)
                         send_to_discord_webhook(
-                            username=name.strip(),
+                            player_name=name.strip(),
                             content=message.strip()
                         )
 
                     # Server messages
                     elif any(kw in line.lower() for kw in ["joined", "left", "disconnected", "connected"]):
                         send_to_discord_webhook(
-                            username="Serene Branson",
+                            player_name="",
                             content=line.strip(),
-                            avatar_url="https://serenekeks.com/serene2.png"
+                            avatar_url="https://serenekeks.com/serene2.png",
+                            is_system=True
                         )
 
         except Exception as e:
