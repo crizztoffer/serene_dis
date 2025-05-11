@@ -35,12 +35,18 @@ async def on_ready():
 async def on_message(message):
     global last_discord_message, last_ark_message
 
+    # Ignore the bot's own messages and messages from other channels
     if message.channel.id != DISCORD_CHANNEL_ID or message.author == client.user:
         return
 
-    last_discord_message = message.content.strip()
-    current_ark_message = get_ark_chat()
+    # Capture and print the username and message content
+    print(f"[DISCORD] {message.author.name}: {message.content}")
 
+    # Update last Discord message
+    last_discord_message = message.content.strip()
+
+    # Fetch Ark chat message and compare
+    current_ark_message = get_ark_chat()
     if last_discord_message == current_ark_message:
         print(f"[MATCH] Discord and Ark message: '{last_discord_message}'")
     else:
