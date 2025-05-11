@@ -39,9 +39,9 @@ async def on_message(message):
     if message.channel.id != DISCORD_CHANNEL_ID or message.author == client.user:
         return
 
-    # Get username as seen in Discord (case-sensitive)
-    username = message.author.name
-    print(f"[DISCORD] {username}: {message.content}")
+    # Get the display name as seen in Discord (case-sensitive)
+    display_name = message.author.display_name
+    print(f"[DISCORD] {display_name}: {message.content}")
 
     # Update last Discord message
     last_discord_message = message.content.strip()
