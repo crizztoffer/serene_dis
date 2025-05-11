@@ -29,7 +29,7 @@ def get_ark_chat():
 def send_to_ark_chat(message):
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-            mcr.command(f'serverchat "{message}"')
+            mcr.command(f'serverchat {message}')
     except Exception as e:
         print(f"Ark send error: {e}")
 
