@@ -22,13 +22,12 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 # Webhook sender
-def send_to_discord_webhook(username, content, avatar_url=None):
+def send_to_discord_webhook(username, content):
     payload = {
         "username": username,
-        "content": content
+        "content": content,
+        "avatar_url": "https://serenekeks.com/dis_ark.png"
     }
-    if avatar_url:
-        payload["avatar_url"] = avatar_url
 
     response = requests.post(WEBHOOK_URL, json=payload)
     if response.status_code != 204:
