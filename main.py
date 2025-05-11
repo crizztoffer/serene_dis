@@ -3,7 +3,6 @@ import os
 import discord
 from discord.ext import commands
 from mcrcon import MCRcon
-import paramiko
 import aiohttp
 import re
 
