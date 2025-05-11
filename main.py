@@ -83,9 +83,11 @@ async def on_message(message):
     display_name = message.author.display_name
     content = message.content.strip()
 
-    # Format without the extra "Discord"
+    # Format the message for Ark
     formatted = f"{display_name}: {content}"
-    formatted_for_ark = formatted.replace("Server: ", "")  # Ensure "Server: " isn't in the message
+    
+    # Replace "Server" with "Discord" in the message
+    formatted_for_ark = formatted.replace("Server", "Discord")
 
     # Prevent reposting the same message back to Ark
     if formatted_for_ark != last_ark_message:
