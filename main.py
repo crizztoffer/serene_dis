@@ -22,11 +22,19 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 # Webhook sender
-def send_to_discord_webhook(username, content, avatar_url):
+def send_to_discord_webhook(username, content, avatar_url=None):
+    # Ignore messages marked as coming from Discord
+    if content.startswith("[DC]"):
+        return
+
+    # Set default avatar for Ark player messages
+    if not avatar_url:
+        avatar_url = "https://serenekeks.com/dis_ark.png"
+
     payload = {
         "username": username,
         "content": content,
-        "avatar_url": "https://serenekeks.com/dis_ark.png"
+        "avatar_url": avatar_url
     }
 
     response = requests.post(WEBHOOK_URL, json=payload)
