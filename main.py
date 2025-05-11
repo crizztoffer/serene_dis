@@ -68,68 +68,56 @@ def monitor_log():
     return ""
 
 
+async def send_ark_message_to_discord(username, message):
+    # Format the message to be sent to Discord in the specified format
+    discord_message = f"{username} - (Ark: Survival Evolved): {message}"
+    
+    # Send the formatted message to Discord
+    channel = client.get_channel(DISCORD_CHANNEL_ID)
+    await channel.send(discord_message, avatar_url="https://serenekeks.com/dis_ark.png")
+
+
 @client.event
 async def on_ready():
-    asyncio.create_task(poll_ark_chat())
-
+    print(f'Logged in as {client.user}')
+    await client.change_presence(activity=discord.Game(name="Ark: Survival Evolved"))
+    
 
 @client.event
 async def on_message(message):
     global last_discord_message, last_ark_message
 
-    if message.channel.id != DISCORD_CHANNEL_ID or message.author == client.user:
+    # Ignore messages from the bot itself
+    if message.author == client.user:
         return
 
-    display_name = message.author.display_name
-    content = message.content.strip()
+    # If the message is from Discord, check if it contains "Ark: Survival Evolved"
+    if "- (Ark: Survival Evolved):" in message.content:
+        return  # Do nothing if the message is already in the correct format
 
-    # Prevent reposting if message contains "- (Ark: Survival Evolved):"
-    if "- (Ark: Survival Evolved):" in display_name:
-        return  # Do nothing if the message is from Ark (to prevent reposting)
+    # If it's a new message from Discord, send it to Ark
+    if message.channel.id == DISCORD_CHANNEL_ID:
+        display_name = message.author.display_name
+        content = message.content.strip()
 
-    # Format the message for Ark
-    formatted_for_ark = f"Discord: {display_name}: {content}"
+        # Format the message for Ark
+        formatted_for_ark = f"Discord: {display_name}: {content}"
 
-    if formatted_for_ark != last_ark_message:
-        send_to_ark_chat(formatted_for_ark)
-        last_discord_message = formatted_for_ark
+        if formatted_for_ark != last_ark_message:
+            send_to_ark_chat(formatted_for_ark)
+            last_discord_message = formatted_for_ark
 
+    # If the message is from Ark (detected via log file), send it to Discord
     current_ark_message = monitor_log()
-    if last_discord_message == current_ark_message:
-        pass
-    else:
-        pass
+    if current_ark_message and current_ark_message != last_ark_message:
+        last_ark_message = current_ark_message
 
-
-# New function to send Ark messages to Discord
-async def send_ark_message_to_discord(username, message):
-    # Format the message to be posted to Discord
-    formatted_message = f"{username} - (Ark: Survival Evolved): {message}"
-    
-    # Send the message to Discord with the specific avatar URL
-    channel = client.get_channel(DISCORD_CHANNEL_ID)
-    if channel:
-        await channel.send(formatted_message, avatar_url="https://serenekeks.com/dis_ark.png")
-
-
-async def poll_ark_chat():
-    global last_ark_message, last_discord_message
-
-    await client.wait_until_ready()
-    while True:
-        current_ark_message = monitor_log()
-        if current_ark_message and current_ark_message != last_ark_message:
-            last_ark_message = current_ark_message
-
-            # If the current Ark message does not contain Discord, send it to Discord
-            if "Discord:" not in current_ark_message:
-                # Assuming Ark messages contain the format "Username: Message"
-                parts = current_ark_message.split(": ", 1)
-                if len(parts) == 2:
-                    username, message = parts
-                    await send_ark_message_to_discord(username, message)
-
-        await asyncio.sleep(5)
+        if "Discord:" not in current_ark_message:  # Ensure we don't send Discord messages back to Discord
+            # Split the Ark message into Username and Message
+            parts = current_ark_message.split(": ", 1)
+            if len(parts) == 2:
+                username, message = parts
+                await send_ark_message_to_discord(username, message)
 
 
 client.run(DISCORD_TOKEN)
