@@ -20,6 +20,7 @@ RCON_PASSWORD = os.getenv("RCON_PASSWORD")
 
 last_discord_message = ""
 last_ark_message = ""
+last_sent_message = ""  # Track the last sent message
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -98,19 +99,22 @@ async def on_message(message):
 
 
 async def poll_ark_chat():
-    global last_ark_message, last_discord_message
+    global last_ark_message, last_discord_message, last_sent_message
 
     await client.wait_until_ready()
     while True:
         current_ark_message = monitor_log()
+        
         if current_ark_message and current_ark_message != last_ark_message:
             last_ark_message = current_ark_message
 
-            if current_ark_message == last_discord_message:
-                pass
-            else:
-                pass
-
+            # Check if the message is the same as the last sent message
+            if current_ark_message != last_sent_message:
+                last_sent_message = current_ark_message  # Update the last sent message
+                # Send the current message to Discord
+                channel = client.get_channel(DISCORD_CHANNEL_ID)
+                await channel.send(current_ark_message)
+        
         await asyncio.sleep(5)
 
 
