@@ -4,42 +4,39 @@ import requests
 from mcrcon import MCRcon
 import discord
 
-# Hardcoded webhook for sending messages to Discord
+# Discord Webhook for Ark → Discord
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 
-# Environment variables from Railway
+# Environment Variables from Railway
 RCON_HOST = os.getenv("RCON_HOST")
 RCON_PORT = int(os.getenv("RCON_PORT", "0"))
 RCON_PASSWORD = os.getenv("RCON_PASSWORD")
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
 
-# Discord setup
+# Discord bot setup
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
-
 client = discord.Client(intents=intents)
 
-# Globals to track last Discord message sent to prevent echo
-last_discord_username = None
-last_discord_message = None
+# Track messages sent from Discord to avoid echoes
+sent_messages = set()
 
-# Send message to Discord webhook
+# Send to Discord via webhook
 def send_to_discord_webhook(username, content, avatar_url=None):
-    # Ignore messages from Discord users to avoid echo loop
-    global last_discord_username, last_discord_message
-    if (
-        username.strip() == last_discord_username and
-        content.strip() == last_discord_message
-    ):
+    # Skip if it's a message we already sent from Discord
+    identifier = (username, content)
+    if identifier in sent_messages:
+        sent_messages.remove(identifier)  # Remove after detecting it once
         return
 
+    # Default avatar for Ark messages
     if not avatar_url:
         avatar_url = "https://serenekeks.com/dis_ark.png"
 
     payload = {
-        "username": f"{username} - Ark: Survival Evolved",
+        "username": f"{username} (Ark: Survival Evolved):",
         "content": content,
         "avatar_url": avatar_url
     }
@@ -48,9 +45,10 @@ def send_to_discord_webhook(username, content, avatar_url=None):
     if response.status_code not in [200, 204]:
         print(f"❌ Failed to send to Discord: {response.status_code} - {response.text}")
 
-# Poll Ark server chat and send messages to Discord
+# Read from Ark and send to Discord
 async def ark_chat_listener():
     previous_lines = set()
+
     while True:
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
@@ -68,37 +66,40 @@ async def ark_chat_listener():
 
                     elif any(kw in line.lower() for kw in ["joined", "left", "disconnected", "connected"]):
                         send_to_discord_webhook(
-                            username="Serene Branson - Ark: Survival Evolved",
+                            username="Server",
                             content=line.strip(),
                             avatar_url="https://serenekeks.com/serene2.png"
                         )
         except Exception as e:
-            print(f"🔥 RCON read error: {e}")
+            print(f"🔥 RCON error: {e}")
+
         await asyncio.sleep(10)
 
-# Relay messages from Discord → Ark
+# Relay from Discord → Ark
 @client.event
 async def on_message(message):
-    global last_discord_username, last_discord_message
-
     if message.author.bot:
         return
     if message.channel.id != DISCORD_CHANNEL_ID:
         return
+    if not message.content.strip():
+        return
 
-    last_discord_username = f"{message.author.display_name} (Discord)"
-    last_discord_message = message.content.strip()
+    username = f"{message.author.display_name} (Discord):"
+    content = message.content.strip()
 
-    full_message = f"{last_discord_username}: {last_discord_message}"
+    full_message = f"{username} {content}"
     print(f"💬 Sending to Ark: {full_message}")
 
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
             mcr.command(f"ServerChat {full_message}")
+        # Track to suppress echo
+        sent_messages.add((message.author.display_name, content))
     except Exception as e:
         print(f"🔥 Failed to send to Ark: {e}")
 
-# Run both bots together
+# Launch both bots
 async def main():
     await asyncio.gather(
         ark_chat_listener(),
