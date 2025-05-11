@@ -51,8 +51,8 @@ async def on_message(message):
     if last_discord_message == current_ark_message:
         print(f"[MATCH] Discord and Ark message: '{last_discord_message}'")
     else:
-        print(f"[DIFFERENT] Discord: '{last_discord_message}'")
-        print(f"[DIFFERENT] Ark:     '{current_ark_message}'")
+        print(f"[DIFFERENT] Discord: {last_discord_message}")
+        print(f"[DIFFERENT] Ark:     {current_ark_message}")
 
 async def poll_ark_chat():
     global last_ark_message, last_discord_message
@@ -65,8 +65,8 @@ async def poll_ark_chat():
             if current_ark_message == last_discord_message:
                 print(f"[MATCH] Ark and Discord message: '{current_ark_message}'")
             else:
-                print(f"[DIFFERENT] Ark:     '{current_ark_message}'")
-                print(f"[DIFFERENT] Discord: '{last_discord_message}'")
+                print(f"[DIFFERENT] Ark:     {current_ark_message}")
+                print(f"[DIFFERENT] Discord: {last_discord_message}")
         await asyncio.sleep(5)
 
 client.run(DISCORD_TOKEN)
