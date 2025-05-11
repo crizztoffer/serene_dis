@@ -20,11 +20,18 @@ client = discord.Client(intents=intents)
 def get_ark_chat():
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-            result = mcr.command("getchat")  # Replace this with correct Ark chat-fetching command
+            result = mcr.command("getchat")  # Replace with appropriate command
             return result.strip()
     except Exception as e:
         print(f"Ark chat fetch error: {e}")
         return ""
+
+def send_to_ark_chat(message):
+    try:
+        with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
+            mcr.command(f"broadcast {message}")
+    except Exception as e:
+        print(f"Ark send error: {e}")
 
 @client.event
 async def on_ready():
@@ -35,24 +42,26 @@ async def on_ready():
 async def on_message(message):
     global last_discord_message, last_ark_message
 
-    # Ignore the bot's own messages and messages from other channels
     if message.channel.id != DISCORD_CHANNEL_ID or message.author == client.user:
         return
 
-    # Get the display name as seen in Discord (case-sensitive)
     display_name = message.author.display_name
-    print(f"[DISCORD] {display_name}: {message.content}")
+    content = message.content.strip()
+    print(f"[DISCORD] {display_name}: {content}")
 
-    # Update last Discord message
-    last_discord_message = message.content.strip()
+    # Compose message and remove "Server: " if it gets prefixed
+    formatted = f"{display_name}: {content}"
+    formatted_for_ark = formatted.replace("Server: ", "")
+    send_to_ark_chat(formatted_for_ark)
 
-    # Fetch Ark chat message and compare
+    last_discord_message = content
+
     current_ark_message = get_ark_chat()
     if last_discord_message == current_ark_message:
         print(f"[MATCH] Discord and Ark message: '{last_discord_message}'")
     else:
-        print(f"[DIFFERENT] Discord: {last_discord_message}")
-        print(f"[DIFFERENT] Ark:     {current_ark_message}")
+        print(f"[DIFFERENT] Discord: '{last_discord_message}'")
+        print(f"[DIFFERENT] Ark:     '{current_ark_message}'")
 
 async def poll_ark_chat():
     global last_ark_message, last_discord_message
@@ -65,8 +74,8 @@ async def poll_ark_chat():
             if current_ark_message == last_discord_message:
                 print(f"[MATCH] Ark and Discord message: '{current_ark_message}'")
             else:
-                print(f"[DIFFERENT] Ark:     {current_ark_message}")
-                print(f"[DIFFERENT] Discord: {last_discord_message}")
+                print(f"[DIFFERENT] Ark:     '{current_ark_message}'")
+                print(f"[DIFFERENT] Discord: '{last_discord_message}'")
         await asyncio.sleep(5)
 
 client.run(DISCORD_TOKEN)
