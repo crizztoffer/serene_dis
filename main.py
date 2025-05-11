@@ -3,13 +3,18 @@ import os
 import discord
 from mcrcon import MCRcon
 import paramiko
+import aiohttp
 
-# Env variables from Railway (same names as before)
+# Constants
+WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
+AVATAR_URL = "https://serenekeks.com/dis_ark.png"
+
+# Env variables from Railway
 FTP_HOST = os.getenv("FTP_HOST")
-FTP_PORT = int(os.getenv("FTP_PORT", "22"))  # SFTP usually uses port 22
+FTP_PORT = int(os.getenv("FTP_PORT", "22"))
 FTP_USER = os.getenv("FTP_USER")
 FTP_PASS = os.getenv("FTP_PASS")
-LOG_FILE_PATH = os.getenv("LOG_FILE_PATH", "/path/to/ShooterGame.log")  # Update default as needed
+LOG_FILE_PATH = os.getenv("LOG_FILE_PATH", "/path/to/ShooterGame.log")
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
@@ -26,13 +31,27 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 
+async def send_ark_message_to_discord(username, message):
+    payload = {
+        "username": username,
+        "content": message,
+        "avatar_url": AVATAR_URL
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(WEBHOOK_URL, json=payload) as response:
+            if response.status != 204:
+                print(f"Failed to send to Discord. Status: {response.status}")
+            else:
+                print(f"Sent Ark chat as {username}: {message}")
+
+
 def get_ark_chat():
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
             result = mcr.command("getchat")
             return result.strip()
-    except Exception as e:
-        print(f"Error getting Ark chat: {e}")
+    except Exception:
         return ""
 
 
@@ -40,8 +59,7 @@ def send_to_ark_chat(message):
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
             mcr.command(f'serverchat {message}')
-    except Exception as e:
-        print(f"Error sending to Ark chat: {e}")
+    except Exception:
         pass
 
 
@@ -51,17 +69,16 @@ def fetch_log_file():
         transport.connect(username=FTP_USER, password=FTP_PASS)
         sftp = paramiko.SFTPClient.from_transport(transport)
 
-        sftp.get(LOG_FILE_PATH, "ShooterGame.log")  # Save locally
+        sftp.get(LOG_FILE_PATH, "ShooterGame.log")
         sftp.close()
         transport.close()
-    except Exception as e:
-        print(f"Error fetching log file: {e}")
+    except Exception:
+        pass
 
 
 def monitor_log():
     fetch_log_file()
     if not os.path.exists("ShooterGame.log"):
-        print("Log file not found.")
         return ""
 
     with open("ShooterGame.log", "r", encoding="utf-8", errors="ignore") as f:
@@ -71,70 +88,56 @@ def monitor_log():
     return ""
 
 
-async def send_ark_message_to_discord(username, message):
-    # Format the message to be sent to Discord in the specified format
-    discord_message = f"{username} - (Ark: Survival Evolved): {message}"
-    
-    # Send the formatted message to Discord
-    channel = client.get_channel(DISCORD_CHANNEL_ID)
-    if channel:
-        await channel.send(discord_message, avatar_url="https://serenekeks.com/dis_ark.png")
-        print(f"Sent message to Discord: {discord_message}")  # Debug print
-    else:
-        print("Error: Discord channel not found.")  # Debug print
-
-
 @client.event
 async def on_ready():
-    print(f'Logged in as {client.user}')
-    await client.change_presence(activity=discord.Game(name="Ark: Survival Evolved"))
-    
+    asyncio.create_task(poll_ark_chat())
+
 
 @client.event
 async def on_message(message):
     global last_discord_message, last_ark_message
 
-    # Ignore messages from the bot itself
-    if message.author == client.user:
+    if message.channel.id != DISCORD_CHANNEL_ID or message.author == client.user:
         return
 
-    print(f"Received message from Discord: {message.content}")  # Debug print
+    display_name = message.author.display_name
+    content = message.content.strip()
 
-    # If the message is from Discord, check if it contains "Ark: Survival Evolved"
-    if "- (Ark: Survival Evolved):" in message.content:
-        print(f"Skipping message (already formatted): {message.content}")  # Debug print
-        return  # Do nothing if the message is already in the correct format
+    if "- (Ark: Survival Evolved):" in display_name:
+        return
 
-    # If it's a new message from Discord, send it to Ark
-    if message.channel.id == DISCORD_CHANNEL_ID:
-        display_name = message.author.display_name
-        content = message.content.strip()
+    formatted_for_ark = f"Discord: {display_name}: {content}"
 
-        # Format the message for Ark
-        formatted_for_ark = f"Discord: {display_name}: {content}"
+    if formatted_for_ark != last_ark_message:
+        send_to_ark_chat(formatted_for_ark)
+        last_discord_message = formatted_for_ark
 
-        if formatted_for_ark != last_ark_message:
-            print(f"Sending to Ark: {formatted_for_ark}")  # Debug print
-            send_to_ark_chat(formatted_for_ark)
-            last_discord_message = formatted_for_ark
 
-    # If the message is from Ark (detected via log file), send it to Discord
-    current_ark_message = monitor_log()
-    if current_ark_message and current_ark_message != last_ark_message:
-        print(f"Received Ark message: {current_ark_message}")  # Debug print
-        last_ark_message = current_ark_message
+async def poll_ark_chat():
+    global last_ark_message, last_discord_message
 
-        if "Discord:" not in current_ark_message:  # Ensure we don't send Discord messages back to Discord
-            # Remove the "SERVER: Discord:" part from the Ark message
-            clean_message = current_ark_message.split("Discord: ", 1)[-1] if "Discord: " in current_ark_message else current_ark_message
+    await client.wait_until_ready()
+    while True:
+        current_ark_message = monitor_log()
+        if current_ark_message and current_ark_message != last_ark_message:
+            last_ark_message = current_ark_message
 
-            # Split the Ark message into Username and Message
-            parts = clean_message.split(": ", 1)
-            if len(parts) == 2:
-                username, message = parts
-                await send_ark_message_to_discord(username, message)
-            else:
-                print(f"Failed to split Ark message: {current_ark_message}")  # Debug print
+            if ": Discord:" in current_ark_message:
+                continue
+
+            # Extract message from log line
+            if "SERVER: " in current_ark_message:
+                try:
+                    message_text = current_ark_message.split("SERVER: ", 1)[1].strip()
+                    if ":" in message_text:
+                        username, message = message_text.split(":", 1)
+                        username = username.strip() + " = (Ark: Survival Evolved)"
+                        message = message.strip()
+                        await send_ark_message_to_discord(username, message)
+                except Exception as e:
+                    print(f"Error parsing message: {e}")
+
+        await asyncio.sleep(5)
 
 
 client.run(DISCORD_TOKEN)
