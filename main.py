@@ -27,7 +27,7 @@ def send_to_discord_webhook(username, content, avatar_url=None):
         return
 
     payload = {
-        "username": f"{username} - (Ark: Survival Evolved):",
+        "username": f"{username} - (Ark: Survival Evolved)",
         "content": content,
         "avatar_url": avatar_url or "https://serenekeks.com/dis_ark.png"
     }
@@ -59,11 +59,6 @@ async def ark_chat_listener():
                         # Skip messages that originated from Discord
                         if name.endswith("(Discord)"):
                             continue
-
-                        # Check if the message already exists in Discord to prevent duplicates
-                        # This requires fetching recent messages from the Discord channel
-                        # and comparing the content. For simplicity, this step is omitted.
-                        # Implement as needed using Discord API.
 
                         send_to_discord_webhook(name, msg)
 
