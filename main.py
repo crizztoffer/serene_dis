@@ -1,58 +1,42 @@
 import asyncio
 import os
+import requests
 from mcrcon import MCRcon
 import discord
-import requests
 
-# Hardcoded webhook URL
+# Hardcoded webhook for sending messages to Discord
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 
-# Discord bot token and channel
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
-
-# RCON details
+# Environment variables from Railway
 RCON_HOST = os.getenv("RCON_HOST")
 RCON_PORT = int(os.getenv("RCON_PORT", "0"))
 RCON_PASSWORD = os.getenv("RCON_PASSWORD")
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+DISCORD_CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))  # <-- Corrected variable name
 
+# Discord setup
+intents = discord.Intents.default()
+intents.messages = True
+intents.message_content = True
 
-# Function to send messages to Discord via webhook
-def send_to_discord_webhook(player_name, content, avatar_url=None, is_system=False):
-    if "(Discord)" in content:
-        return  # Prevent loopback of Discord-to-Ark messages
+client = discord.Client(intents=intents)
 
-    if not avatar_url:
-        avatar_url = "https://serenekeks.com/dis_ark.png"
-
-    if is_system:
-        username = "Serene Branson"
-    else:
-        username = "Ark: Survival Evolved"
-
-    # Format player message with their name
-    if not is_system:
-        content = f"**{player_name}** - Ark: Survival Evolved: {content}"
-
+# Webhook sender
+def send_to_discord_webhook(username, content, avatar_url=None):
     payload = {
         "username": username,
-        "avatar_url": avatar_url,
         "content": content
     }
+    if avatar_url:
+        payload["avatar_url"] = avatar_url
 
     response = requests.post(WEBHOOK_URL, json=payload)
-    if response.status_code not in [200, 204]:
+    if response.status_code != 204:
         print(f"❌ Failed to send to Discord: {response.status_code} - {response.text}")
 
-
-# Async function to read Ark chat
+# Poll Ark server chat and send new lines to Discord
 async def ark_chat_listener():
     previous_lines = set()
-
-    if not all([RCON_HOST, RCON_PORT, RCON_PASSWORD]):
-        print("❌ Missing one or more RCON environment variables.")
-        return
-
     while True:
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
@@ -64,65 +48,48 @@ async def ark_chat_listener():
                         continue
                     previous_lines.add(line)
 
-                    # Skip messages from Discord bot
-                    if "(Discord)" in line:
-                        continue
-
                     # Player chat
                     if ": " in line:
                         name, message = line.split(": ", 1)
-                        send_to_discord_webhook(
-                            player_name=name.strip(),
-                            content=message.strip()
-                        )
+                        send_to_discord_webhook(name.strip(), message.strip())
 
-                    # Server messages
+                    # Join/leave events
                     elif any(kw in line.lower() for kw in ["joined", "left", "disconnected", "connected"]):
                         send_to_discord_webhook(
-                            player_name="",
+                            username="Serene Branson",
                             content=line.strip(),
-                            avatar_url="https://serenekeks.com/serene2.png",
-                            is_system=True
+                            avatar_url="https://serenekeks.com/serene2.png"
                         )
-
         except Exception as e:
-            print(f"🔥 Error reading Ark chat: {e}")
-
+            print(f"🔥 RCON read error: {e}")
         await asyncio.sleep(10)
 
-
-# Discord bot client
-intents = discord.Intents.default()
-intents.message_content = True
-client = discord.Client(intents=intents)
-
-
-@client.event
-async def on_ready():
-    print(f"✅ Logged in as {client.user}")
-    asyncio.create_task(ark_chat_listener())
-
-
+# Discord → Ark chat relay
 @client.event
 async def on_message(message):
-    if message.author == client.user:
+    if message.author.bot:
+        return
+    if message.channel.id != DISCORD_CHANNEL_ID:
         return
 
-    if message.channel.id != CHANNEL_ID:
-        return
+    content = f"{message.author.display_name}: {message.content}"
+    print(f"💬 Sending to Ark: {content}")
 
-    if message.content.strip():
-        try:
-            with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-                player_name = message.author.display_name
-                msg = f"(Discord) {player_name}: {message.content}"
-                mcr.command(f"broadcast {msg}")
-        except Exception as e:
-            print(f"🔥 Failed to send message to Ark: {e}")
+    try:
+        with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
+            mcr.command(f"ServerChat {content}")
+    except Exception as e:
+        print(f"🔥 Failed to send to Ark: {e}")
 
+# Run both bots together
+async def main():
+    await asyncio.gather(
+        ark_chat_listener(),
+        client.start(DISCORD_TOKEN)
+    )
 
 if __name__ == "__main__":
     try:
-        client.run(DISCORD_TOKEN)
+        asyncio.run(main())
     except KeyboardInterrupt:
         print("Bot shutting down.")
