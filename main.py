@@ -24,7 +24,7 @@ client = discord.Client(intents=intents)
 # Webhook sender
 def send_to_discord_webhook(username, content, avatar_url=None):
     # Ignore messages marked as coming from Discord
-    if content.startswith("(Discord): "):
+    if content.startswith("(Discord)"):
         return
 
     # Set default avatar for Ark player messages
@@ -59,7 +59,7 @@ async def ark_chat_listener():
                     if ": " in line:
                         name, message = line.split(": ", 1)
 
-                         if message.strip().startswith("(Discord): "):
+                        if message.strip().startswith("(Discord): "):
                             continue
                         
                         send_to_discord_webhook(name.strip(), message.strip())
