@@ -7,7 +7,7 @@ import discord
 # Webhook URL
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 
-# Env variables from Railway
+# Environment variables from Railway
 RCON_HOST = os.getenv("RCON_HOST")
 RCON_PORT = int(os.getenv("RCON_PORT", "0"))
 RCON_PASSWORD = os.getenv("RCON_PASSWORD")
@@ -19,14 +19,14 @@ intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 
-# Internal state to prevent echo
+# Track last message sent from Discord to prevent echo
 last_discord_message = {"content": "", "username": ""}
 
 # --- Send to Discord via Webhook ---
 def send_to_discord_webhook(username, content, avatar_url=None):
     global last_discord_message
 
-    # Skip if this message matches the last sent from Discord
+    # Skip echo if matches last Discord-sent message
     if username == last_discord_message["username"] and content == last_discord_message["content"]:
         return
 
@@ -34,7 +34,7 @@ def send_to_discord_webhook(username, content, avatar_url=None):
         avatar_url = "https://serenekeks.com/dis_ark.png"
 
     payload = {
-        "username": f"{username} (Ark: Survival Evolved):",
+        "username": f"{username} - (Ark: Survival Evolved):",
         "content": content,
         "avatar_url": avatar_url
     }
