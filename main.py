@@ -20,7 +20,7 @@ client = discord.Client(intents=intents)
 def get_ark_chat():
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-            result = mcr.command("getchat")  # Replace with appropriate command
+            result = mcr.command("getchat")  # Replace with your actual Ark RCON command
             return result.strip()
     except Exception as e:
         print(f"Ark chat fetch error: {e}")
@@ -29,7 +29,7 @@ def get_ark_chat():
 def send_to_ark_chat(message):
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-            mcr.command(f"broadcast {message}")
+            mcr.command(f'serverchat "{message}"')
     except Exception as e:
         print(f"Ark send error: {e}")
 
@@ -49,12 +49,16 @@ async def on_message(message):
     content = message.content.strip()
     print(f"[DISCORD] {display_name}: {content}")
 
-    # Compose message and remove "Server: " if it gets prefixed
+    # Format and strip "Server: "
     formatted = f"{display_name}: {content}"
     formatted_for_ark = formatted.replace("Server: ", "")
-    send_to_ark_chat(formatted_for_ark)
 
-    last_discord_message = content
+    # Prevent reposting the same message back to Ark
+    if formatted_for_ark != last_ark_message:
+        send_to_ark_chat(formatted_for_ark)
+        last_discord_message = content
+    else:
+        print("[SKIP] Message from Discord matches last Ark message. Skipping repost.")
 
     current_ark_message = get_ark_chat()
     if last_discord_message == current_ark_message:
@@ -71,11 +75,14 @@ async def poll_ark_chat():
         current_ark_message = get_ark_chat()
         if current_ark_message and current_ark_message != last_ark_message:
             last_ark_message = current_ark_message
+
             if current_ark_message == last_discord_message:
                 print(f"[MATCH] Ark and Discord message: '{current_ark_message}'")
             else:
                 print(f"[DIFFERENT] Ark:     '{current_ark_message}'")
                 print(f"[DIFFERENT] Discord: '{last_discord_message}'")
+                # You can post to Discord here if desired
+
         await asyncio.sleep(5)
 
 client.run(DISCORD_TOKEN)
