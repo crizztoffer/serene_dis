@@ -83,13 +83,9 @@ async def on_message(message):
     display_name = message.author.display_name
     content = message.content.strip()
 
-    # Format the message for Ark, assuming "Server: " was added manually to start with
-    formatted = f"Server: {display_name}: {content}"
+    # Final message format: Discord: Username: Message
+    formatted_for_ark = f"Discord: {display_name}: {content}"
 
-    # Replace "Server: " with "Discord"
-    formatted_for_ark = formatted.replace("Server: ", "Discord")
-
-    # Prevent reposting the same message back to Ark
     if formatted_for_ark != last_ark_message:
         send_to_ark_chat(formatted_for_ark)
         last_discord_message = formatted_for_ark
