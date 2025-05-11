@@ -37,10 +37,8 @@ def get_ark_chat():
 
 def send_to_ark_chat(message):
     try:
-        # Prepend "Discord" to the message instead of "Server"
-        padded_message = f"Discord {message}"  # No "- (Discord):", just "Discord"
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-            mcr.command(f'serverchat {padded_message}')
+            mcr.command(f'serverchat {message}')
     except Exception:
         pass
 
@@ -85,8 +83,8 @@ async def on_message(message):
     display_name = message.author.display_name
     content = message.content.strip()
 
-    # Format: "Discord {display_name}: {content}" without the " - (Discord):"
-    formatted = f"Discord {display_name}: {content}"
+    # Format without the extra "Discord"
+    formatted = f"{display_name}: {content}"
     formatted_for_ark = formatted.replace("Server: ", "")  # Ensure "Server: " isn't in the message
 
     # Prevent reposting the same message back to Ark
