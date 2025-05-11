@@ -30,15 +30,19 @@ client = discord.Client(intents=intents)
 
 # Function to fetch the log file from FTP server
 def fetch_log_file():
-    ftp = FTP()
-    ftp.connect(FTP_HOST, FTP_PORT)
-    ftp.login(FTP_USER, FTP_PASS)
-    ftp.cwd(os.path.dirname(LOG_FILE_PATH))
+    try:
+        ftp = FTP()
+        ftp.connect(FTP_HOST, FTP_PORT)
+        ftp.login(FTP_USER, FTP_PASS)
+        ftp.cwd(os.path.dirname(LOG_FILE_PATH))
 
-    with open("ShooterGame.log", "wb") as local_file:
-        ftp.retrbinary("RETR " + os.path.basename(LOG_FILE_PATH), local_file.write)
+        with open("ShooterGame.log", "wb") as local_file:
+            ftp.retrbinary("RETR " + os.path.basename(LOG_FILE_PATH), local_file.write)
 
-    ftp.quit()
+        ftp.quit()
+    except Exception as e:
+        print(f"Failed to connect to FTP or retrieve log file: {e}")
+        raise  # Re-raise the exception so it can be caught elsewhere
 
 # Function to monitor the log file for new lines
 def monitor_log():
