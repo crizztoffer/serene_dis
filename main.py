@@ -49,8 +49,8 @@ async def on_message(message):
     content = message.content.strip()
     print(f"[DISCORD] {display_name}: {content}")
 
-    # Format and strip "Server: "
-    formatted = f"{display_name}: {content}"
+    # Format and strip "Server: ", then include - (Discord):
+    formatted = f"{display_name} - (Discord): {content}"
     formatted_for_ark = formatted.replace("Server: ", "")
 
     # Prevent reposting the same message back to Ark
