@@ -83,9 +83,9 @@ async def on_message(message):
     display_name = message.author.display_name
     content = message.content.strip()
 
-    # Final message format with color codes
-    # Discord in Red (^1), Username in Light Red (^5), Message in White (^7)
-    formatted_for_ark = f"^1Discord: ^5{display_name}: ^7{content}"
+    # Color formatting for Ark chat
+    # Red for "Discord", Light red for username, White for message
+    formatted_for_ark = f"^1[Discord]: ^2[{display_name}]: ^7[{content}]"
 
     if formatted_for_ark != last_ark_message:
         send_to_ark_chat(formatted_for_ark)
