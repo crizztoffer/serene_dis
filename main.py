@@ -104,17 +104,25 @@ async def poll_ark_chat():
     await client.wait_until_ready()
     while True:
         current_ark_message = monitor_log()
-        
+
         if current_ark_message and current_ark_message != last_ark_message:
             last_ark_message = current_ark_message
 
-            # Check if the message is the same as the last sent message
-            if current_ark_message != last_sent_message:
-                last_sent_message = current_ark_message  # Update the last sent message
-                # Send the current message to Discord
+            # Check if the message contains "Server: Discord:"
+            if "SERVER: Discord:" in current_ark_message:
+                continue  # Skip sending this message as it has already been processed
+
+            # Remove everything after the "SERVER: Discord:" portion
+            # Trim the message starting from "SERVER: Discord:"
+            trimmed_message = current_ark_message.split("SERVER: Discord:")[1].strip() if "SERVER: Discord:" in current_ark_message else current_ark_message
+
+            # Ensure this is a new message before sending to Discord
+            if trimmed_message != last_sent_message:
+                last_sent_message = trimmed_message  # Update the last sent message
+                # Send the message to Discord
                 channel = client.get_channel(DISCORD_CHANNEL_ID)
-                await channel.send(current_ark_message)
-        
+                await channel.send(trimmed_message)
+
         await asyncio.sleep(5)
 
 
