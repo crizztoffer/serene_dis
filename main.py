@@ -83,9 +83,9 @@ async def on_message(message):
     display_name = message.author.display_name
     content = message.content.strip()
 
-    # Format the message for Ark
-    formatted = f"{display_name}: {content}"
-    
+    # Format the message for Ark, assuming "Server: " was added manually to start with
+    formatted = f"Server: {display_name}: {content}"
+
     # Replace "Server: " with "Discord"
     formatted_for_ark = formatted.replace("Server: ", "Discord")
 
