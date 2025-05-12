@@ -2,6 +2,7 @@ import os
 import discord
 import asyncio
 import re
+import aiohttp
 from discord.ext import commands
 from mcrcon import MCRcon
 
@@ -84,10 +85,10 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
+# Update the main function to avoid direct `loop` usage
 async def main():
     """Main function to start bot and chat monitoring."""
-    bot.loop.create_task(monitor_ark_chat())  # Start monitoring ARK chat
-    await bot.start(DISCORD_TOKEN)
+    await asyncio.gather(bot.start(DISCORD_TOKEN), monitor_ark_chat())  # Start bot and monitoring chat concurrently
 
 # Start the bot using asyncio.run for async execution
 if __name__ == "__main__":
