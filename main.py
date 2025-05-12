@@ -9,7 +9,7 @@ import aiohttp
 # Constants
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 AVATAR_URL = "https://serenekeks.com/dis_ark.png"
-LOG_FILE_PATH = "/path/to/ShooterGame/Saved/Logs/ShooterGame.log"  # ← replace with actual path on server
+LOG_FILE_PATH = os.getenv("LOG_FILE_PATH", "/path/to/default/log/file.log")  # Pull path from environment variable
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
