@@ -63,19 +63,25 @@ async def debug_get_chat():
     while not bot.is_closed():
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-                response = mcr.command("GetChat")
-                print("[DEBUG] Raw GetChat response:\n", response)
-
-                for line in response.splitlines():
-                    # Match format: Name (Name): Message
+                response = mcr.command("getchat")
+                lines = response.splitlines()
+                for line in lines:
                     match = re.match(r"^(.*?) \([^\)]+\): (.+)$", line)
                     if match:
-                        name = match.group(1)
+                        username = match.group(1)
                         message = match.group(2)
-                        print(f"[PARSED] Name: {name}")
-                        print(f"[PARSED] Message: {message}")
+
+                        async with aiohttp.ClientSession() as session:
+                            webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
+                            await webhook.send(
+                                content=message,
+                                username=username,
+                                avatar_url=AVATAR_URL
+                            )
+
         except Exception as e:
             print("[ERROR] debug_get_chat:", e)
+
         await asyncio.sleep(2)
 
 @bot.event
