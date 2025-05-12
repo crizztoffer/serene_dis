@@ -28,10 +28,16 @@ last_seen_message = None
 async def debug_gmod_rcon():
     await bot.wait_until_ready()
     GMOD_RCON_IP = os.getenv("GMOD_RCON_IP")
-    GMOD_RCON_PORT = int(os.getenv("GMOD_RCON_PORT", "0"))
+    GMOD_RCON_PORT = os.getenv("GMOD_RCON_PORT")
     GMOD_RCON_PASSWORD = os.getenv("GMOD_RCON_PASSWORD")
 
+    if not GMOD_RCON_IP or not GMOD_RCON_PORT or not GMOD_RCON_PASSWORD:
+        print("[ERROR] Missing one or more GMOD RCON environment variables.")
+        print(f"GMOD_RCON_IP={GMOD_RCON_IP}, GMOD_RCON_PORT={GMOD_RCON_PORT}, GMOD_RCON_PASSWORD={'SET' if GMOD_RCON_PASSWORD else 'NOT SET'}")
+        return
+
     try:
+        GMOD_RCON_PORT = int(GMOD_RCON_PORT)
         with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as mcr:
             print("[INFO] Successfully connected to GMod RCON.")
             test_response = mcr.command("status")
