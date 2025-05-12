@@ -1,6 +1,7 @@
 import os
 import asyncio
 import discord
+import aiohttp
 from discord.ext import commands
 from mcrcon import MCRcon
 import re
