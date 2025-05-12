@@ -58,10 +58,24 @@ async def monitor_ark_chat():
             print("[ERROR] monitor_ark_chat:", e)
         await asyncio.sleep(1)
 
+# ✅ Isolated async debug task
+async def debug_get_chat():
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        try:
+            with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
+                response = mcr.command("GetChat")
+                print("[DEBUG] GetChat response:\n", response)
+        except Exception as e:
+            print("[ERROR] debug_get_chat:", e)
+        await asyncio.sleep(2)  # Adjust as needed
+        
+
 @bot.event
 async def on_ready():
     print(f"[INFO] Logged in as {bot.user.name}")
     bot.loop.create_task(monitor_ark_chat())
+    bot.loop.create_task(debug_get_chat())  # 👈 Start the debug chat fetcher
 
 @bot.event
 async def on_message(message):
