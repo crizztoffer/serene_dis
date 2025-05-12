@@ -1,5 +1,6 @@
 import os
 import asyncio
+import re  # <-- Add this line to fix the 're' not defined error
 import discord
 from discord.ext import commands
 from mcrcon import MCRcon
