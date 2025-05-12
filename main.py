@@ -50,7 +50,6 @@ async def monitor_ark_chat():
     while not bot.is_closed():
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-                response = mcr.command("broadcast ping")
                 username, message = parse_chat_response(response)
                 if username and message and message != last_seen:
                     last_seen = message
