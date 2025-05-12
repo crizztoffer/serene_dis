@@ -1,15 +1,15 @@
 import os
-import discord
 import asyncio
-import re
-import aiohttp
+import discord
 from discord.ext import commands
-from mcrcon import MCRcon
+from arkon import RCON
+import aiohttp
 
-# Constants
+# Constants (Webhook + Avatar)
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 AVATAR_URL = "https://serenekeks.com/dis_ark.png"
 
+# Environment Variables
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
 
@@ -17,87 +17,62 @@ RCON_HOST = os.getenv("RCON_HOST")
 RCON_PORT = int(os.getenv("RCON_PORT", "0"))
 RCON_PASSWORD = os.getenv("RCON_PASSWORD")
 
-# Set up the bot
 intents = discord.Intents.default()
 intents.message_content = True
+
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Global variable to track last seen line
-last_line = ""
+# === Sends a message into Ark via ServerChat ===
+async def send_rcon_message(message: str):
+    try:
+        async with RCON(RCON_HOST, RCON_PORT, RCON_PASSWORD) as rcon:
+            response = await rcon.send(f"ServerChat {message}")
+            print("[INFO] Sent to ARK:", message)
+            print("[DEBUG] RCON response:", response)
+    except Exception as e:
+        print("[ERROR] Failed to send RCON message:", e)
 
+# === Sends a message to Discord via webhook ===
 async def send_to_discord(username, message):
-    """Send a message from Ark to Discord."""
-    async with aiohttp.ClientSession() as session:
-        webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
-        await webhook.send(
-            content=message,
-            username=username,
-            avatar_url=AVATAR_URL
-        )
+    try:
+        async with aiohttp.ClientSession() as session:
+            webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
+            await webhook.send(
+                content=message,
+                username=username,
+                avatar_url=AVATAR_URL
+            )
+            print(f"[INFO] Sent to Discord: {username}: {message}")
+    except Exception as e:
+        print("[ERROR] Failed to send message to Discord:", e)
 
-async def monitor_ark_chat():
-    """Poll ARK server for new chat messages."""
-    global last_line
-    await bot.wait_until_ready()
-    while not bot.is_closed():
-        try:
-            with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-                # Command to get recent chat messages or logs from the server
-                response = mcr.command('getchat')  # Hypothetical command; check with your server
-
-                # Check if there are new messages
-                if response:
-                    # Here we assume 'response' contains a string with chat messages
-                    print(f"{last_line}")
-                    if response != last_line:
-                        last_line = response
-                        username, message = parse_chat_line(response)
-                        if username and message:
-                            await send_to_discord(username, message)
-        except Exception as e:
-            print(f"[ERROR] RCON Error: {e}")
-        
-        await asyncio.sleep(5)  # Poll every 5 seconds to avoid server overload
-
-def parse_chat_line(line):
-    """Parse chat line from ARK server log."""
-    # Example of parsing format "PlayerName: Message"
-    # Assuming the chat message follows a format like: 'PlayerName: Message'
-    match = re.search(r'(\w+): (.*)', line)
-    if match:
-        username = match.group(1)
-        message = match.group(2)
-        return username, message
-    return None, None
-
+# === Handle incoming messages from Discord to Ark ===
 @bot.event
 async def on_message(message):
-    """Handle messages from Discord and send them to ARK in-game chat."""
     if message.channel.id != DISCORD_CHANNEL_ID or message.author.bot:
-        print(f"Inconsistent ID")
         return
 
-    # Prevent message relaying back to Discord (i.e., ignore messages that contain '[DISCORD]')
     if '[DISCORD]' in message.content:
-        return
+        return  # Prevent loopback
 
-    # Format the message for RCON
     rcon_message = f"[DISCORD] {message.author.display_name}: {message.content}"
-
-    try:
-        with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-            # Send the message to ARK global chat using RCON
-            mcr.command(f'ServerChat {rcon_message}')  # Replace 'ServerChat' with appropriate command
-    except Exception as e:
-        print(f"[ERROR] Sending to ARK via RCON failed: {e}")
+    await send_rcon_message(rcon_message)
 
     await bot.process_commands(message)
 
-# Update the main function to avoid direct `loop` usage
-async def main():
-    """Main function to start bot and chat monitoring."""
-    await asyncio.gather(bot.start(DISCORD_TOKEN), monitor_ark_chat())  # Start bot and monitoring chat concurrently
+# === Optional: background task to read logs or chat ===
+# Placeholder: you'd implement actual parsing if log access is possible
 
-# Start the bot using asyncio.run for async execution
+async def monitor_ark_chat():
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        # If in the future we read from logs or API, process them here
+        await asyncio.sleep(5)
+
+# === Main entrypoint using asyncio.run() ===
+async def main():
+    bot.loop.create_task(monitor_ark_chat())
+    await bot.start(DISCORD_TOKEN)
+
 if __name__ == "__main__":
     asyncio.run(main())
