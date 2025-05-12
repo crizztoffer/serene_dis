@@ -2,7 +2,7 @@ import os
 import asyncio
 import discord
 from discord.ext import commands
-from ark_rcon.rcon import Client
+from ark_rcon import Client
 
 # Constants
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Optional: for log output via webhook
