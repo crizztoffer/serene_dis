@@ -65,10 +65,19 @@ async def debug_get_chat():
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
                 response = mcr.command("GetChat")
-                print("[DEBUG] GetChat response:\n", response)
+                print("[DEBUG] Raw GetChat response:\n", response)
+
+                for line in response.splitlines():
+                    # Match: Name (Name): Message
+                    match = re.match(r"^(\S+)\s+\([^)]+\):\s+(.*)", line)
+                    if match:
+                        name = match.group(1)
+                        message = match.group(2)
+                        print(f"[PARSED] Name: {name}")
+                        print(f"[PARSED] Message: {message}")
         except Exception as e:
             print("[ERROR] debug_get_chat:", e)
-        await asyncio.sleep(2)  # Adjust as needed
+        await asyncio.sleep(1)
         
 
 @bot.event
