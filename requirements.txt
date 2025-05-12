@@ -1,4 +1,3 @@
 discord.py==2.3.2
 aiohttp==3.9.3
-mcrcon==0.6.0
 ark-rcon==0.0.4
