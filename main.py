@@ -9,7 +9,7 @@ import aiohttp
 # Constants
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 AVATAR_URL = "https://serenekeks.com/dis_ark.png"
-LOG_FILE_PATH = "/path/to/ShooterGame/Saved/Logs/ShooterGame.log"
+LOG_FILE_PATH = "/path/to/ShooterGame/Saved/Logs/ShooterGame.log"  # ← replace with actual path on server
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
@@ -82,6 +82,10 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# Start log monitoring and run bot
-bot.loop.create_task(monitor_ark_chat())
+# Use setup_hook for async startup tasks
+@bot.event
+async def setup_hook():
+    bot.loop.create_task(monitor_ark_chat())
+
+# Start the bot
 bot.run(DISCORD_TOKEN)
