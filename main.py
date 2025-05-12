@@ -1,6 +1,5 @@
 import os
 import asyncio
-import re
 import discord
 from discord.ext import commands
 from mcrcon import MCRcon
@@ -9,7 +8,6 @@ import aiohttp
 # Constants
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 AVATAR_URL = "https://serenekeks.com/dis_ark.png"
-LOG_FILE_PATH = os.getenv("LOG_FILE_PATH", "/path/to/default/log/file.log")  # Pull path from environment variable
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
@@ -23,26 +21,30 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-last_line = ""
+# Keep track of last message to avoid sending duplicates
+last_message = ""
 
-# Read last chat line from ARK log
-def read_latest_chat_line():
-    global last_line
+# Fetch ARK server chat using RCON
+async def fetch_chat_from_ark():
+    global last_message
     try:
-        with open(LOG_FILE_PATH, "r", encoding="utf-8", errors="ignore") as f:
-            lines = f.readlines()
-            for line in reversed(lines):
-                if "Chat" in line and "[DISCORD]" not in line:
-                    if line != last_line:
-                        last_line = line
-                        return parse_chat_line(line)
+        # Connect to RCON and get the last global chat message
+        with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
+            response = mcr.command("listplayers")  # Can be changed to a specific command to read chat logs
+            if response:
+                # Assuming the response contains chat messages (adjust command accordingly)
+                for line in response.splitlines():
+                    if line != last_message:
+                        last_message = line
+                        username, message = parse_chat_line(line)
+                        if username and message:
+                            await send_to_discord(username, message)
     except Exception as e:
-        print("Log read error:", e)
-    return None, None
+        print("RCON Error:", e)
 
-# Parse chat line into username and message
+# Parse chat line into username and message (adjust regex as per ARK chat format)
 def parse_chat_line(line):
-    match = re.search(r'(\w+)\s+Global\s+Chat:\s+(.*)', line)
+    match = re.search(r'(\w+):\s*(.*)', line)
     if match:
         return match.group(1), match.group(2)
     return None, None
@@ -57,14 +59,12 @@ async def send_to_discord(username, message):
             avatar_url=AVATAR_URL
         )
 
-# Monitor ARK log and send new messages to Discord
+# Monitor ARK chat and send new messages to Discord
 async def monitor_ark_chat():
     await bot.wait_until_ready()
     while not bot.is_closed():
-        username, message = read_latest_chat_line()
-        if username and message:
-            await send_to_discord(username, message)
-        await asyncio.sleep(5)
+        await fetch_chat_from_ark()
+        await asyncio.sleep(5)  # Adjust as needed for polling frequency
 
 # Send Discord message to ARK via RCON
 @bot.event
