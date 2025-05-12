@@ -2,92 +2,58 @@ import os
 import asyncio
 import discord
 from discord.ext import commands
-from ark_rcon import ArkRcon
-import re
-import aiohttp
+from ark_rcon.rcon import Client
 
-# === Constants ===
-WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
-AVATAR_URL = "https://serenekeks.com/dis_ark.png"
-
+# Constants
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Optional: for log output via webhook
+AVATAR_URL = os.getenv("AVATAR_URL", "https://serenekeks.com/dis_ark.png")
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
 
+# RCON connection info from Railway env variables
 RCON_HOST = os.getenv("RCON_HOST")
-RCON_PORT = int(os.getenv("RCON_PORT", "0"))
+RCON_PORT = int(os.getenv("RCON_PORT", "27020"))
 RCON_PASSWORD = os.getenv("RCON_PASSWORD")
 
+# Discord setup
 intents = discord.Intents.default()
 intents.message_content = True
-
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-last_seen_chat = None
 
-
-# === Send message to Discord via webhook ===
-async def send_to_discord(username, message):
-    async with aiohttp.ClientSession() as session:
-        webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
-        await webhook.send(content=message, username=username, avatar_url=AVATAR_URL)
-
-
-# === Send message to Ark via RCON ===
-async def send_to_ark(message):
+def send_rcon_message(message: str) -> str:
     try:
-        async with ArkRcon(RCON_HOST, RCON_PORT, RCON_PASSWORD) as rcon:
-            response = await rcon.send_command(f'ServerChat {message}')
-            print("[INFO] Sent to ARK:", message)
-            print("[DEBUG] RCON response:", response)
+        with Client(RCON_HOST, RCON_PORT, passwd=RCON_PASSWORD) as client:
+            response = client.run(f'serverchat {message}')
+            print("[RCON Sent]:", message)
+            return response
     except Exception as e:
-        print("[ERROR] Failed to send RCON message:", e)
+        print("[RCON Error]:", e)
+        return None
 
 
-# === Monitor Ark chat using GetChat ===
-async def monitor_ark_chat():
-    global last_seen_chat
-    await bot.wait_until_ready()
-
-    while not bot.is_closed():
-        try:
-            async with ArkRcon(RCON_HOST, RCON_PORT, RCON_PASSWORD) as rcon:
-                response = await rcon.send_command("GetChat")
-                if response and response != last_seen_chat:
-                    last_seen_chat = response
-
-                    lines = response.split("\n")
-                    for line in lines:
-                        if "[DISCORD]" in line or "AdminCmd" in line:
-                            continue
-
-                        match = re.search(r'(\w+):\s(.+)', line)
-                        if match:
-                            username = match.group(1)
-                            message = match.group(2)
-                            await send_to_discord(username, message)
-        except Exception as e:
-            print("[ERROR] Failed to fetch chat:", e)
-
-        await asyncio.sleep(5)
+@bot.event
+async def on_ready():
+    print(f"[INFO] Logged in as {bot.user.name}")
 
 
-# === Handle messages from Discord to Ark ===
 @bot.event
 async def on_message(message):
-    if message.channel.id != DISCORD_CHANNEL_ID or message.author.bot:
+    # Ignore bot messages or irrelevant channels
+    if message.author.bot or message.channel.id != DISCORD_CHANNEL_ID:
         return
 
-    rcon_message = f"[DISCORD] {message.author.display_name}: {message.content}"
-    await send_to_ark(rcon_message)
+    discord_msg = f"[DISCORD] {message.author.display_name}: {message.content}"
+    send_rcon_message(discord_msg)
 
     await bot.process_commands(message)
 
 
-# === Run bot ===
-async def main():
-    asyncio.create_task(monitor_ark_chat())
-    await bot.start(DISCORD_TOKEN)
-
+# If needed, extend this with periodic ARK-to-Discord log reading in future.
+# Currently only Discord ➡ ARK direction supported reliably via RCON
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    if not all([DISCORD_TOKEN, RCON_HOST, RCON_PORT, RCON_PASSWORD]):
+        raise EnvironmentError("Missing one or more required environment variables.")
+
+    asyncio.run(bot.start(DISCORD_TOKEN))
