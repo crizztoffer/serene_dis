@@ -56,7 +56,7 @@ async def monitor_ark_chat():
         except Exception as e:
             print(f"[ERROR] RCON Error: {e}")
         
-        await asyncio.sleep(1)  # Poll every 5 seconds to avoid server overload
+        await asyncio.sleep(5)  # Poll every 5 seconds to avoid server overload
 
 def parse_chat_line(line):
     """Parse chat line from ARK server log."""
@@ -73,6 +73,10 @@ def parse_chat_line(line):
 async def on_message(message):
     """Handle messages from Discord and send them to ARK in-game chat."""
     if message.channel.id != DISCORD_CHANNEL_ID or message.author.bot:
+        return
+
+    # Prevent message relaying back to Discord (i.e., ignore messages that contain '[DISCORD]')
+    if '[DISCORD]' in message.content:
         return
 
     # Format the message for RCON
