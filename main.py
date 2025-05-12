@@ -43,23 +43,25 @@ async def monitor_ark_chat():
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
                 # Command to get recent chat messages or logs from the server
-                response = mcr.command('getchatmessages')  # Hypothetical command, update based on your setup
+                response = mcr.command('getchat')  # Hypothetical command; check with your server
 
                 # Check if there are new messages
-                if response and response != last_line:
-                    last_line = response
-                    username, message = parse_chat_line(response)
-                    if username and message:
-                        await send_to_discord(username, message)
-
+                if response:
+                    # Here we assume 'response' contains a string with chat messages
+                    if response != last_line:
+                        last_line = response
+                        username, message = parse_chat_line(response)
+                        if username and message:
+                            await send_to_discord(username, message)
         except Exception as e:
             print(f"[ERROR] RCON Error: {e}")
         
-        await asyncio.sleep(5)  # Poll every 5 seconds to avoid server overload
+        await asyncio.sleep(1)  # Poll every 5 seconds to avoid server overload
 
 def parse_chat_line(line):
     """Parse chat line from ARK server log."""
     # Example of parsing format "PlayerName: Message"
+    # Assuming the chat message follows a format like: 'PlayerName: Message'
     match = re.search(r'(\w+): (.*)', line)
     if match:
         username = match.group(1)
