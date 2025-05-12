@@ -29,7 +29,7 @@ async def debug_gmod_rcon():
     await bot.wait_until_ready()
     GMOD_RCON_IP = os.getenv("GMOD_RCON_IP")
     GMOD_RCON_PORT = os.getenv("GMOD_RCON_PORT")
-    GMOD_RCON_PASSWORD = os.getenv("GMOD_RCON_PASSWORD")
+    GMOD_RCON_PASSWORD = os.getenv("GMOD_RCON_PASS")
 
     if not GMOD_RCON_IP or not GMOD_RCON_PORT or not GMOD_RCON_PASSWORD:
         print("[ERROR] Missing one or more GMOD RCON environment variables.")
