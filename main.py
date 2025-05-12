@@ -23,21 +23,32 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 sent_from_discord = set()
 
 async def debug_get_chat():
-    last_seen = None
+    global last_seen_message
     await bot.wait_until_ready()
     while not bot.is_closed():
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
                 response = mcr.command("getchat")
-                if response and response != last_seen:
-                    last_seen = response
-                    match = re.match(r"^(.*?) \([^)]+\): (.*)$", response)
+                lines = response.splitlines()
+                for line in lines:
+                    match = re.match(r"^(.*?) \([^\)]+\): (.+)$", line)
                     if match:
-                        username = match.group(1).strip()
-                        message = match.group(2).strip()
-                        print(f"[ARK CHAT] {username}: {message}")  # Output message to console
+                        username = match.group(1)
+                        message = match.group(2)
+
+                        if message != last_seen_message:
+                            last_seen_message = message
+                            async with aiohttp.ClientSession() as session:
+                                webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
+                                await webhook.send(
+                                    content=message,
+                                    username=username,
+                                    avatar_url=AVATAR_URL
+                                )
+
         except Exception as e:
-            print("[ERROR] getchat failed:", e)
+            print("[ERROR] debug_get_chat:", e)
+
         await asyncio.sleep(1)
 
 @bot.event
