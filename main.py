@@ -92,7 +92,7 @@ async def debug_get_chat():
                                     with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as gmod_rcon:
                                         gmod_message = f"ARK|{raw_username}|Ark: Survival Unleashed|{message}"
                                         print(f"[INFO] Relaying to GMod: {gmod_message}")
-                                        gmod_rcon.command(f"say {gmod_message}")
+                                        gmod_rcon.command(f"lua_run PrintChatFromConsole({gmod_message})")
                                 except Exception as e:
                                     print(f"[ERROR] Failed to send message to GMod: {e}")
 
