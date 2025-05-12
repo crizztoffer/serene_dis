@@ -58,7 +58,6 @@ async def monitor_ark_chat():
             print("[ERROR] monitor_ark_chat:", e)
         await asyncio.sleep(1)
 
-# ✅ Isolated async debug task
 async def debug_get_chat():
     await bot.wait_until_ready()
     while not bot.is_closed():
@@ -68,8 +67,8 @@ async def debug_get_chat():
                 print("[DEBUG] Raw GetChat response:\n", response)
 
                 for line in response.splitlines():
-                    # Match: Name (Name): Message
-                    match = re.match(r"^(\S+)\s+\([^)]+\):\s+(.*)", line)
+                    # Match format: Name (Name): Message
+                    match = re.match(r"^(.*?) \([^\)]+\): (.+)$", line)
                     if match:
                         name = match.group(1)
                         message = match.group(2)
@@ -77,8 +76,7 @@ async def debug_get_chat():
                         print(f"[PARSED] Message: {message}")
         except Exception as e:
             print("[ERROR] debug_get_chat:", e)
-        await asyncio.sleep(1)
-        
+        await asyncio.sleep(2)
 
 @bot.event
 async def on_ready():
