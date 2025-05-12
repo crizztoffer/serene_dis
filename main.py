@@ -35,8 +35,9 @@ async def debug_get_chat():
                 for line in lines:
                     match = re.match(r"^(.*?) \([^\)]+\): (.+)$", line)
                     if match:
-                        username = match.group(1)
+                        raw_username = match.group(1)
                         message = match.group(2)
+                        username = f"(Ark: Survival Evolved) {raw_username}"
 
                         if message != last_seen_message:
                             last_seen_message = message
@@ -51,7 +52,7 @@ async def debug_get_chat():
         except Exception as e:
             print("[ERROR] debug_get_chat:", e)
 
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
 
 @bot.event
 async def on_ready():
