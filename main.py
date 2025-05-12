@@ -24,6 +24,29 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 sent_from_discord = set()
 last_seen_message = None
 
+# Debug GMod RCON connection separately
+async def debug_gmod_rcon():
+    await bot.wait_until_ready()
+    GMOD_RCON_IP = os.getenv("GMOD_RCON_IP")
+    GMOD_RCON_PORT = int(os.getenv("GMOD_RCON_PORT", "0"))
+    GMOD_RCON_PASSWORD = os.getenv("GMOD_RCON_PASSWORD")
+
+    try:
+        with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as mcr:
+            print("[INFO] Successfully connected to GMod RCON.")
+            test_response = mcr.command("status")
+            print(f"[GMOD RCON RESPONSE] {test_response}")
+    except Exception as e:
+        print(f"[ERROR] Failed to connect to GMod RCON: {e}")
+
+# Schedule the GMod RCON debug task
+@bot.event
+async def on_ready():
+    print(f"[INFO] Logged in as {bot.user.name}")
+    bot.loop.create_task(debug_get_chat())  # Existing ARK chat debug task
+    bot.loop.create_task(debug_gmod_rcon())  # New GMod RCON connection test
+
+
 async def debug_get_chat():
     global last_seen_message
     await bot.wait_until_ready()
