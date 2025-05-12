@@ -39,14 +39,6 @@ async def debug_gmod_rcon():
     except Exception as e:
         print(f"[ERROR] Failed to connect to GMod RCON: {e}")
 
-# Schedule the GMod RCON debug task
-@bot.event
-async def on_ready():
-    print(f"[INFO] Logged in as {bot.user.name}")
-    bot.loop.create_task(debug_get_chat())  # Existing ARK chat debug task
-    bot.loop.create_task(debug_gmod_rcon())  # New GMod RCON connection test
-
-
 async def debug_get_chat():
     global last_seen_message
     await bot.wait_until_ready()
@@ -81,6 +73,7 @@ async def debug_get_chat():
 async def on_ready():
     print(f"[INFO] Logged in as {bot.user.name}")
     bot.loop.create_task(debug_get_chat())  # Start debugging Ark chat
+    bot.loop.create_task(debug_gmod_rcon())  # Start debugging GMod RCON connection
 
 @bot.event
 async def on_message(message):
