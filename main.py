@@ -48,6 +48,20 @@ async def debug_gmod_rcon():
 async def debug_get_chat():
     global last_seen_message
     await bot.wait_until_ready()
+
+    # Prepare GMod RCON config
+    GMOD_RCON_IP = os.getenv("GMOD_RCON_IP")
+    GMOD_RCON_PORT = os.getenv("GMOD_RCON_PORT")
+    GMOD_RCON_PASSWORD = os.getenv("GMOD_RCON_PASS")
+    GMOD_ENABLED = GMOD_RCON_IP and GMOD_RCON_PORT and GMOD_RCON_PASSWORD
+
+    if GMOD_ENABLED:
+        try:
+            GMOD_RCON_PORT = int(GMOD_RCON_PORT)
+        except ValueError:
+            print(f"[ERROR] Invalid GMOD_RCON_PORT: {GMOD_RCON_PORT}")
+            GMOD_ENABLED = False
+
     while not bot.is_closed():
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
@@ -62,6 +76,8 @@ async def debug_get_chat():
 
                         if message != last_seen_message:
                             last_seen_message = message
+
+                            # Send to Discord webhook
                             async with aiohttp.ClientSession() as session:
                                 webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
                                 await webhook.send(
@@ -70,10 +86,21 @@ async def debug_get_chat():
                                     avatar_url=AVATAR_URL
                                 )
 
+                            # Send to GMod RCON
+                            if GMOD_ENABLED:
+                                try:
+                                    with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as gmod_rcon:
+                                        gmod_message = f"{raw_username}|Ark: Survival Unleashed|{message}"
+                                        print(f"[INFO] Relaying to GMod: {gmod_message}")
+                                        gmod_rcon.command(f"say {gmod_message}")
+                                except Exception as e:
+                                    print(f"[ERROR] Failed to send message to GMod: {e}")
+
         except Exception as e:
             print("[ERROR] debug_get_chat:", e)
 
         await asyncio.sleep(1)
+
 
 @bot.event
 async def on_ready():
