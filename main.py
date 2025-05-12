@@ -50,6 +50,7 @@ async def monitor_ark_chat():
                     # Here we assume 'response' contains a string with chat messages
                     if response != last_line:
                         last_line = response
+                        print(f"{last_line}")
                         username, message = parse_chat_line(response)
                         if username and message:
                             await send_to_discord(username, message)
@@ -73,6 +74,7 @@ def parse_chat_line(line):
 async def on_message(message):
     """Handle messages from Discord and send them to ARK in-game chat."""
     if message.channel.id != DISCORD_CHANNEL_ID or message.author.bot:
+        print(f"Inconsistent ID")
         return
 
     # Prevent message relaying back to Discord (i.e., ignore messages that contain '[DISCORD]')
