@@ -48,9 +48,9 @@ async def monitor_ark_chat():
                 # Check if there are new messages
                 if response:
                     # Here we assume 'response' contains a string with chat messages
+                    print(f"{last_line}")
                     if response != last_line:
                         last_line = response
-                        print(f"{last_line}")
                         username, message = parse_chat_line(response)
                         if username and message:
                             await send_to_discord(username, message)
