@@ -4,6 +4,7 @@ import discord
 from discord.ext import commands
 from mcrcon import MCRcon
 import re
+import aiohttp
 
 # Constants
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
@@ -21,6 +22,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Used to prevent Discord echo
 sent_from_discord = set()
+last_seen_message = None
 
 async def debug_get_chat():
     global last_seen_message
@@ -49,12 +51,12 @@ async def debug_get_chat():
         except Exception as e:
             print("[ERROR] debug_get_chat:", e)
 
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
 
 @bot.event
 async def on_ready():
     print(f"[INFO] Logged in as {bot.user.name}")
-    bot.loop.create_task(debug_get_chat())
+    bot.loop.create_task(debug_get_chat())  # Start debugging Ark chat
 
 @bot.event
 async def on_message(message):
