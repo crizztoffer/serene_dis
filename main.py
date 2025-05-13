@@ -101,14 +101,15 @@ async def handle_serene_start(source, username, message):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             body = await resp.text()
-            await send_to_discord("Serene Branson", body, "https://serenekeks.com/serene2.png")
-            await relay_to_ark_and_gmod("Serene", body)
+
+            await send_to_discord("Serene", body, "https://serenekeks.com/serene2.png")
+            await relay_to_ark_and_gmod("Serene", body)  # <-- NEW LINE
 
 async def handle_serene_question(source, username, message):
     serene_key = f"{source}|{username}"
 
     if serene_sessions.get(serene_key):
-        del serene_sessions[serene_key]
+        del serene_sessions[serene_key]  # End session
 
         question = urllib.parse.quote_plus(message)
         p_name = urllib.parse.quote_plus(username)
@@ -118,8 +119,10 @@ async def handle_serene_question(source, username, message):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 body = await resp.text()
-                await send_to_discord("Serene Branson", body, "https://serenekeks.com/serene2.png")
-                await relay_to_ark_and_gmod("Serene", body)
+
+                await send_to_discord("Serene", body, "https://serenekeks.com/serene2.png")
+                await relay_to_ark_and_gmod("Serene", body)  # <-- NEW LINE
+
         return True
     return False
     
@@ -142,8 +145,14 @@ def handle_gmod():
         print(f"[GMod → Discord+ARK] {username}: {message}")
 
         async def process():
-            avatar_url = await get_steam_avatar(steamid) if steamid else GMOD_AVATAR_URL
-            await send_to_discord(f"[{source}] {username}", message, avatar_url)
+    avatar_url = await get_steam_avatar(steamid) if steamid else GMOD_AVATAR_URL
+
+    if message.lower() in ("!serene", "/serene"):
+        await handle_serene_start("GMod", username, message)
+    elif await handle_serene_question("GMod", username, message):
+        return
+    else:
+        await send_to_discord(f"[{source}] {username}", message, avatar_url)
 
         asyncio.run_coroutine_threadsafe(process(), bot.loop)
 
@@ -193,7 +202,14 @@ async def debug_get_chat():
 
                         if is_duplicate(source, raw_username, message):
                             continue
-
+                        
+                        # Try Serene trigger
+                        if message.lower() in ("!serene", "/serene"):
+                            await handle_serene_start("ARK", raw_username, message)
+                        elif await handle_serene_question("ARK", raw_username, message):
+                            continue  # Serene already replied
+                        
+                        # Else, send normally
                         username = f"[{source}] {raw_username}"
                         await send_to_discord(username, message, ARK_AVATAR_URL)
 
