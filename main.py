@@ -11,6 +11,7 @@ from threading import Thread
 # Constants
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 ARK_AVATAR_URL = "https://serenekeks.com/dis_ark.png"
+GMOD_AVATAR_URL = "https://serenekeks.com/dis_gmod.png"
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
@@ -26,25 +27,19 @@ app = Flask(__name__)
 last_seen_ark_message = None
 
 # ───────────────────────────────
-# Send Helpers
+# Helpers
 # ───────────────────────────────
 
-async def send_to_discord(username, message, avatar_url=ARK_AVATAR_URL):
+async def send_to_discord(username, message, avatar_url):
     async with aiohttp.ClientSession() as session:
         webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
         await webhook.send(content=message, username=username, avatar_url=avatar_url)
 
-async def send_from_ark_to_discord(username, message):
-    await send_to_discord(f"[ARK] {username}", message, ARK_AVATAR_URL)
-
-async def send_from_gmod_to_discord(username, message, avatar_url=ARK_AVATAR_URL):
-    await send_to_discord(f"[GMod] {username}", message, avatar_url)
-
-async def send_from_discord_to_discord(username, message):
-    await send_to_discord(f"[DISCORD] {username}", message)
+def run_flask():
+    app.run(host="0.0.0.0", port=8080)
 
 # ───────────────────────────────
-# Flask → GMod → ARK + Discord
+# GMod → ARK + Discord
 # ───────────────────────────────
 
 @app.route('/from_gmod.php', methods=['POST'])
@@ -53,7 +48,11 @@ def handle_gmod():
         data = request.get_json()
         username = data.get("username", "Unknown")
         message = data.get("message", "")
-        avatar_url = data.get("Avatar_Url", ARK_AVATAR_URL)
+        
+        # Use provided Avatar_Url, fallback to GMOD_AVATAR_URL if missing/blank
+        avatar_url = data.get("Avatar_Url")
+        if not avatar_url or avatar_url.strip() == "":
+            avatar_url = GMOD_AVATAR_URL
 
         unique_id = f"{username}|{message}"
         if unique_id == getattr(handle_gmod, "last_msg", None):
@@ -65,7 +64,7 @@ def handle_gmod():
 
         # Send to Discord
         asyncio.run_coroutine_threadsafe(
-            send_from_gmod_to_discord(username, message, avatar_url),
+            send_to_discord(f"[GMod] {username}", message, avatar_url),
             bot.loop
         )
 
@@ -82,9 +81,6 @@ def handle_gmod():
     except Exception as e:
         print("[ERROR] /from_gmod.php:", e)
         return jsonify({"status": "error", "detail": str(e)}), 500
-
-def run_flask():
-    app.run(host="0.0.0.0", port=8080)
 
 # ───────────────────────────────
 # ARK → GMod + Discord
@@ -121,8 +117,10 @@ async def debug_get_chat():
                         if full_message_id != last_seen_ark_message:
                             last_seen_ark_message = full_message_id
 
-                            await send_from_ark_to_discord(raw_username, message)
+                            # Send to Discord
+                            await send_to_discord(f"[ARK] {raw_username}", message, ARK_AVATAR_URL)
 
+                            # Relay to GMod
                             if GMOD_ENABLED:
                                 try:
                                     with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as gmod_rcon:
@@ -142,20 +140,16 @@ async def debug_get_chat():
 
 @bot.event
 async def on_message(message):
-    print(f"[DEBUG] Discord message from {message.author}: {message.content}")
+    print(f"[DEBUG] Message from {message.author} in channel {message.channel.id}")
 
-    if message.channel.id != DISCORD_CHANNEL_ID or message.author.bot:
-        print("[DEBUG] Skipped: wrong channel or from bot.")
-        return
-
-    if message.webhook_id is not None:
-        print("[DEBUG] Skipped: from webhook.")
+    if message.channel.id != DISCORD_CHANNEL_ID or message.author.bot or message.webhook_id:
         return
 
     author = message.author.display_name
     content = message.content
 
-    await send_from_discord_to_discord(author, content)
+    # Relay to Discord via webhook for formatting
+    await send_to_discord(f"[DISCORD] {author}", content, ARK_AVATAR_URL)
 
     # Relay to ARK
     try:
@@ -185,6 +179,7 @@ async def on_message(message):
 @bot.event
 async def on_ready():
     print(f"[INFO] Logged in as {bot.user.name}")
+    print(f"[INFO] Watching Discord channel: {DISCORD_CHANNEL_ID}")
     bot.loop.create_task(debug_get_chat())
 
 if __name__ == '__main__':
