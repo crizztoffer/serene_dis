@@ -140,23 +140,23 @@ async def debug_get_chat():
 
 @bot.event
 async def on_message(message):
-    print(f"[DEBUG] Message from {message.author} in channel {message.channel.id}")
-
     if message.channel.id != DISCORD_CHANNEL_ID or message.author.bot or message.webhook_id:
         return
 
     author = message.author.display_name
     content = message.content
 
-    # Relay to Discord via webhook for formatting
-    await send_to_discord(f"[DISCORD] {author}", content, ARK_AVATAR_URL)
+    print(f"[DISCORD] Message from {author}: {content}")
 
     # Relay to ARK
     try:
+        print("[DISCORD → ARK] Attempting to send...")
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-            mcr.command(f"serverchat [DISCORD] {author}: {content}")
+            ark_message = f"[DISCORD] {author}: {content}"
+            mcr.command(f"serverchat {ark_message}")
+            print("[DISCORD → ARK] Sent successfully.")
     except Exception as e:
-        print("[ERROR] Discord → ARK failed:", e)
+        print(f"[ERROR] Discord → ARK failed: {e}")
 
     # Relay to GMod
     try:
@@ -164,11 +164,13 @@ async def on_message(message):
         GMOD_RCON_PORT = int(os.getenv("GMOD_RCON_PORT", "0"))
         GMOD_RCON_PASSWORD = os.getenv("GMOD_RCON_PASS")
         if GMOD_RCON_IP and GMOD_RCON_PORT and GMOD_RCON_PASSWORD:
+            print("[DISCORD → GMod] Attempting to send...")
             with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as gmod_rcon:
                 gmod_message = f"DISCORD|{author}|Discord|{content}"
                 gmod_rcon.command(f"lua_run PrintChatFromConsole([[{gmod_message}]])")
+                print("[DISCORD → GMod] Sent successfully.")
     except Exception as e:
-        print("[ERROR] Discord → GMod failed:", e)
+        print(f"[ERROR] Discord → GMod failed: {e}")
 
     await bot.process_commands(message)
 
