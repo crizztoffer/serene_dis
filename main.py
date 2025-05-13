@@ -200,9 +200,6 @@ async def debug_get_chat():
                         raw_username = match.group(1)
                         message = match.group(2)
                         source = "ARK"
-
-                        if is_duplicate(source, raw_username, message):
-                            continue
                         
                         # Try Serene trigger
                         if message.lower() in ("!serene", "/serene"):
@@ -211,6 +208,9 @@ async def debug_get_chat():
                             continue  # Serene already replied
                         
                         # Else, send normally
+                        if is_duplicate(source, raw_username, message):
+                            continue
+                        
                         username = f"[{source}] {raw_username}"
                         await send_to_discord(username, message, ARK_AVATAR_URL)
 
