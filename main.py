@@ -8,7 +8,10 @@ import re
 import aiohttp
 from threading import Thread
 
-# Constants
+# ───────────────────────────────
+# Config & Constants
+# ───────────────────────────────
+
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 ARK_AVATAR_URL = "https://serenekeks.com/dis_ark.png"
 
@@ -26,7 +29,7 @@ app = Flask(__name__)
 last_seen_message = None
 
 # ───────────────────────────────
-# Flask Endpoint for GMod → Discord + ARK
+# Flask: GMod → Discord + ARK
 # ───────────────────────────────
 
 @app.route('/from_gmod.php', methods=['POST'])
@@ -34,22 +37,21 @@ def handle_gmod():
     try:
         data = request.get_json()
         username = data.get("username", "Unknown")
-        source = data.get("source", "Garry's Mod")
         message = data.get("message", "")
-        avatar_url = data.get("Avatar_Url", ARK_AVATAR_URL)  # fallback
+        avatar_url = data.get("Avatar_Url", ARK_AVATAR_URL)
 
-        print(f"[GMod → Discord] {username}: {message}")
+        print(f"[Garry's Mod] {username}: {message}")
 
-        # Send to Discord webhook
+        # Send to Discord
         asyncio.run_coroutine_threadsafe(
-            send_to_discord(f"({source}) {username}", message, avatar_url),
+            send_to_discord(f"[Garry's Mod] {username}", message, avatar_url),
             bot.loop
         )
 
-        # Send to ARK RCON
+        # Relay to ARK
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-                ark_message = f"[{source}] {username}: {message}"
+                ark_message = f"[Garry's Mod] {username}: {message}"
                 mcr.command(f"serverchat {ark_message}")
         except Exception as e:
             print("[ERROR] Failed to send to ARK:", e)
@@ -69,7 +71,7 @@ def run_flask():
     app.run(host="0.0.0.0", port=8080)
 
 # ───────────────────────────────
-# Ark → Discord + GMod Relay
+# ARK → Discord + GMod
 # ───────────────────────────────
 
 async def debug_get_chat():
@@ -98,7 +100,7 @@ async def debug_get_chat():
                     if match:
                         raw_username = match.group(1)
                         message = match.group(2)
-                        username = f"(Ark) {raw_username}"
+                        username = f"[Ark] {raw_username}"
 
                         if message != last_seen_message:
                             last_seen_message = message
@@ -121,7 +123,7 @@ async def debug_get_chat():
         await asyncio.sleep(1)
 
 # ───────────────────────────────
-# Optional: GMod RCON Health Check
+# Optional: Check GMod RCON
 # ───────────────────────────────
 
 async def debug_gmod_rcon():
@@ -143,26 +145,20 @@ async def debug_gmod_rcon():
         print(f"[ERROR] GMod RCON connection failed: {e}")
 
 # ───────────────────────────────
-# Discord Event Handling
+# Discord → GMod + ARK
 # ───────────────────────────────
 
 @bot.event
-async def on_ready():
-    print(f"[INFO] Logged in as {bot.user.name}")
-    bot.loop.create_task(debug_get_chat())
-    bot.loop.create_task(debug_gmod_rcon())
-
-@bot.event
 async def on_message(message):
-    if message.channel.id != DISCORD_CHANNEL_ID or message.author.bot:
+    if message.author.bot or message.channel.id != DISCORD_CHANNEL_ID:
         return
 
-    rcon_message = f"[DISCORD] {message.author.display_name}: {message.content}"
+    raw = f"[DISCORD] {message.author.display_name}: {message.content}"
 
     # Send to ARK
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-            mcr.command(f"serverchat {rcon_message}")
+            mcr.command(f"serverchat {raw}")
     except Exception as e:
         print("[ERROR] Discord → ARK failed:", e)
 
@@ -186,7 +182,14 @@ async def on_message(message):
 # Entrypoint
 # ───────────────────────────────
 
+@bot.event
+async def on_ready():
+    print(f"[INFO] Logged in as {bot.user.name}")
+    bot.loop.create_task(debug_get_chat())
+    bot.loop.create_task(debug_gmod_rcon())
+
 if __name__ == '__main__':
     flask_thread = Thread(target=run_flask)
     flask_thread.start()
+
     asyncio.run(bot.start(DISCORD_TOKEN))
