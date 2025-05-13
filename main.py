@@ -108,7 +108,7 @@ async def handle_serene_start(source, username, message):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             body = await resp.text()
-            await send_to_discord("Serene", body, SERENE_AVATAR_URL)
+            await send_to_discord("Serene Branson", body, SERENE_AVATAR_URL)
             await relay_to_ark_and_gmod("Serene", body)
 
 async def handle_serene_question(source, username, message):
@@ -124,7 +124,7 @@ async def handle_serene_question(source, username, message):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 body = await resp.text()
-                await send_to_discord("Serene", body, SERENE_AVATAR_URL)
+                await send_to_discord("Serene Branson", body, SERENE_AVATAR_URL)
                 await relay_to_ark_and_gmod("Serene", body)
         return True
     return False
