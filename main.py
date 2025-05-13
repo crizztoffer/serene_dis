@@ -3,7 +3,7 @@ import asyncio
 import discord
 from discord.ext import commands
 from mcrcon import MCRcon
-from flask import Flask
+from flask import Flask, request, jsonify
 import re
 import aiohttp
 
