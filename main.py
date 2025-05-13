@@ -43,7 +43,7 @@ async def send_to_discord(username, message, avatar_url):
 @app.route('/from_gmod.php', methods=['POST'])
 def handle_gmod():
     try:
-        data = request.get_json()
+        data = request.get_json(force=True)
         if not data:
             data = json.loads(request.data.decode("utf-8"))
 
