@@ -145,28 +145,28 @@ def handle_gmod():
         print(f"[GMod → Discord+ARK] {username}: {message}")
 
         async def process():
-    avatar_url = await get_steam_avatar(steamid) if steamid else GMOD_AVATAR_URL
-
-    if message.lower() in ("!serene", "/serene"):
-        await handle_serene_start("GMod", username, message)
-    elif await handle_serene_question("GMod", username, message):
-        return
-    else:
-        await send_to_discord(f"[{source}] {username}", message, avatar_url)
-
-        asyncio.run_coroutine_threadsafe(process(), bot.loop)
-
-        try:
-            with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-                mcr.command(f"serverchat [GMod] {username}: {message}")
-        except Exception as e:
-            print("[ERROR] Failed to send to ARK:", e)
-
-        return jsonify({"status": "ok"}), 200
-
-    except Exception as e:
-        print("[ERROR] /from_gmod.php:", e)
-        return jsonify({"status": "error", "detail": str(e)}), 500
+            avatar_url = await get_steam_avatar(steamid) if steamid else GMOD_AVATAR_URL
+        
+            if message.lower() in ("!serene", "/serene"):
+                await handle_serene_start("GMod", username, message)
+            elif await handle_serene_question("GMod", username, message):
+                return
+            else:
+                await send_to_discord(f"[{source}] {username}", message, avatar_url)
+        
+                asyncio.run_coroutine_threadsafe(process(), bot.loop)
+        
+                try:
+                    with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
+                        mcr.command(f"serverchat [GMod] {username}: {message}")
+                except Exception as e:
+                    print("[ERROR] Failed to send to ARK:", e)
+        
+                return jsonify({"status": "ok"}), 200
+        
+            except Exception as e:
+                print("[ERROR] /from_gmod.php:", e)
+                return jsonify({"status": "error", "detail": str(e)}), 500
 
 # ───────────────────────────────
 # ARK → GMod + Discord
