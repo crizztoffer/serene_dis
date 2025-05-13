@@ -4,11 +4,13 @@ import discord
 from discord.ext import commands
 from mcrcon import MCRcon
 from flask import Flask, request, jsonify
+import json
 import re
 import aiohttp
 from threading import Thread
 
-# Constants
+# ─────────── Configuration ───────────
+
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 ARK_AVATAR_URL = "https://serenekeks.com/dis_ark.png"
 GMOD_AVATAR_URL = "https://serenekeks.com/dis_gmod.png"
@@ -19,59 +21,49 @@ RCON_HOST = os.getenv("RCON_HOST")
 RCON_PORT = int(os.getenv("RCON_PORT", "0"))
 RCON_PASSWORD = os.getenv("RCON_PASSWORD")
 
+GMOD_RCON_IP = os.getenv("GMOD_RCON_IP")
+GMOD_RCON_PORT = int(os.getenv("GMOD_RCON_PORT", "0"))
+GMOD_RCON_PASSWORD = os.getenv("GMOD_RCON_PASS")
+
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
-
 app = Flask(__name__)
 last_seen_ark_message = None
 
-# ───────────────────────────────
-# Helpers
-# ───────────────────────────────
+# ─────────── Discord Webhook Sender ───────────
 
 async def send_to_discord(username, message, avatar_url):
     async with aiohttp.ClientSession() as session:
         webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
         await webhook.send(content=message, username=username, avatar_url=avatar_url)
 
-def run_flask():
-    app.run(host="0.0.0.0", port=8080)
-
-# ───────────────────────────────
-# GMod → ARK + Discord
-# ───────────────────────────────
+# ─────────── Flask Endpoint for GMod Messages ───────────
 
 @app.route('/from_gmod.php', methods=['POST'])
 def handle_gmod():
     try:
         data = request.get_json()
+        if not data:
+            data = json.loads(request.data.decode("utf-8"))
+
+        print("[FROM GMOD] Data received:", data)
+
         username = data.get("username", "Unknown")
         message = data.get("message", "")
-        
-        # Use provided Avatar_Url, fallback to GMOD_AVATAR_URL if missing/blank
-        avatar_url = data.get("Avatar_Url")
-        if not avatar_url or avatar_url.strip() == "":
-            avatar_url = GMOD_AVATAR_URL
-
-        unique_id = f"{username}|{message}"
-        if unique_id == getattr(handle_gmod, "last_msg", None):
-            print("[SKIP] Duplicate GMod message.")
-            return jsonify({"status": "duplicate"}), 200
-        handle_gmod.last_msg = unique_id
-
-        print(f"[GMod → Discord+ARK] {username}: {message}")
+        source = "Garry's Mod"
+        avatar_url = data.get("Avatar_Url") or GMOD_AVATAR_URL
 
         # Send to Discord
         asyncio.run_coroutine_threadsafe(
-            send_to_discord(f"[GMod] {username}", message, avatar_url),
+            send_to_discord(f"[{source}] {username}", message, avatar_url),
             bot.loop
         )
 
-        # Send to ARK
+        # Relay to ARK
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-                ark_message = f"[GMod] {username}: {message}"
+                ark_message = f"[{source}] {username}: {message}"
                 mcr.command(f"serverchat {ark_message}")
         except Exception as e:
             print("[ERROR] Failed to send to ARK:", e)
@@ -82,25 +74,13 @@ def handle_gmod():
         print("[ERROR] /from_gmod.php:", e)
         return jsonify({"status": "error", "detail": str(e)}), 500
 
-# ───────────────────────────────
-# ARK → GMod + Discord
-# ───────────────────────────────
+# ─────────── ARK → Discord + GMod ───────────
 
 async def debug_get_chat():
     global last_seen_ark_message
     await bot.wait_until_ready()
 
-    GMOD_RCON_IP = os.getenv("GMOD_RCON_IP")
-    GMOD_RCON_PORT = os.getenv("GMOD_RCON_PORT")
-    GMOD_RCON_PASSWORD = os.getenv("GMOD_RCON_PASS")
     GMOD_ENABLED = GMOD_RCON_IP and GMOD_RCON_PORT and GMOD_RCON_PASSWORD
-
-    if GMOD_ENABLED:
-        try:
-            GMOD_RCON_PORT = int(GMOD_RCON_PORT)
-        except ValueError:
-            print(f"[ERROR] Invalid GMOD_RCON_PORT: {GMOD_RCON_PORT}")
-            GMOD_ENABLED = False
 
     while not bot.is_closed():
         try:
@@ -112,22 +92,21 @@ async def debug_get_chat():
                     if match:
                         raw_username = match.group(1)
                         message = match.group(2)
+                        username = f"[Ark] {raw_username}"
                         full_message_id = f"{raw_username}|{message}"
 
                         if full_message_id != last_seen_ark_message:
                             last_seen_ark_message = full_message_id
 
                             # Send to Discord
-                            await send_to_discord(f"[ARK] {raw_username}", message, ARK_AVATAR_URL)
+                            await send_to_discord(username, message, ARK_AVATAR_URL)
 
                             # Relay to GMod
                             if GMOD_ENABLED:
                                 try:
                                     gmod_message = f"ARK|{raw_username}|Ark: Survival Unleashed|{message}"
-                                    print(f"[ARK → GMod] Relaying: {gmod_message}")
                                     with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as gmod_rcon:
                                         gmod_rcon.command(f"lua_run PrintChatFromConsole([[{gmod_message}]])")
-                                    print("[ARK → GMod] Sent successfully.")
                                 except Exception as e:
                                     print("[ERROR] GMod relay failed:", e)
 
@@ -136,59 +115,39 @@ async def debug_get_chat():
 
         await asyncio.sleep(1)
 
-# ───────────────────────────────
-# Discord → ARK + GMod
-# ───────────────────────────────
+# ─────────── Discord → ARK + GMod ───────────
 
 @bot.event
 async def on_message(message):
-    # Only proceed if it's the correct channel and not a bot or webhook
-    if message.channel.id != DISCORD_CHANNEL_ID:
+    if message.channel.id != DISCORD_CHANNEL_ID or message.author.bot:
         return
-    if message.author.bot:
-        return
-    if message.webhook_id is not None:
-        return  # ✅ Prevent loop: ignore webhook-based messages
 
-    author = message.author.display_name
-    content = message.content
+    discord_message = f"[DISCORD] {message.author.display_name}: {message.content}"
 
-    print(f"[DISCORD] Message from {author}: {content}")
-
-    # Relay to ARK
     try:
-        print("[DISCORD → ARK] Attempting to send...")
+        # Relay to ARK
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-            ark_message = f"[DISCORD] {author}: {content}"
-            mcr.command(f"serverchat {ark_message}")
-            print("[DISCORD → ARK] Sent successfully.")
-    except Exception as e:
-        print(f"[ERROR] Discord → ARK failed: {e}")
+            mcr.command(f"serverchat {discord_message}")
 
-    # Relay to GMod
-    try:
-        GMOD_RCON_IP = os.getenv("GMOD_RCON_IP")
-        GMOD_RCON_PORT = int(os.getenv("GMOD_RCON_PORT", "0"))
-        GMOD_RCON_PASSWORD = os.getenv("GMOD_RCON_PASS")
+        # Relay to GMod
         if GMOD_RCON_IP and GMOD_RCON_PORT and GMOD_RCON_PASSWORD:
-            print("[DISCORD → GMod] Attempting to send...")
+            gmod_message = f"DISCORD|{message.author.display_name}|Discord|{message.content}"
             with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as gmod_rcon:
-                gmod_message = f"DISCORD|{author}|Discord|{content}"
                 gmod_rcon.command(f"lua_run PrintChatFromConsole([[{gmod_message}]])")
-                print("[DISCORD → GMod] Sent successfully.")
+
     except Exception as e:
-        print(f"[ERROR] Discord → GMod failed: {e}")
+        print("[ERROR] Discord relay failed:", e)
 
     await bot.process_commands(message)
 
-# ───────────────────────────────
-# Entrypoint
-# ───────────────────────────────
+# ─────────── Flask Thread + Bot Entry ───────────
+
+def run_flask():
+    app.run(host="0.0.0.0", port=8080)
 
 @bot.event
 async def on_ready():
     print(f"[INFO] Logged in as {bot.user.name}")
-    print(f"[INFO] Watching Discord channel: {DISCORD_CHANNEL_ID}")
     bot.loop.create_task(debug_get_chat())
 
 if __name__ == '__main__':
