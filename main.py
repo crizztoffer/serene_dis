@@ -66,6 +66,27 @@ async def get_steam_avatar(steamid: str) -> str:
         print("[ERROR] Failed to fetch Steam avatar:", e)
     return GMOD_AVATAR_URL
 
+async def relay_to_ark_and_gmod(username, message):
+    ark_message = f"{username}: {message}"
+    try:
+        with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
+            mcr.command(f"serverchat {ark_message}")
+    except Exception as e:
+        print("[ERROR] Serene → ARK failed:", e)
+
+    GMOD_RCON_IP = os.getenv("GMOD_RCON_IP")
+    GMOD_RCON_PORT = int(os.getenv("GMOD_RCON_PORT", "0"))
+    GMOD_RCON_PASSWORD = os.getenv("GMOD_RCON_PASS")
+
+    if GMOD_RCON_IP and GMOD_RCON_PORT and GMOD_RCON_PASSWORD:
+        try:
+            with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as gmod_rcon:
+                gmod_msg = f"SERENE|{username}|Serene|{message}"
+                gmod_rcon.command(f"lua_run PrintChatFromConsole([[{gmod_msg}]])")
+        except Exception as e:
+            print("[ERROR] Serene → GMod failed:", e)
+
+
 serene_sessions = {}
 
 async def handle_serene_start(source, username, message):
@@ -80,13 +101,14 @@ async def handle_serene_start(source, username, message):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             body = await resp.text()
-            await send_to_discord("Serene", body, "https://serenekeks.com/serene2.png")
+            await send_to_discord("Serene Branson", body, "https://serenekeks.com/serene2.png")
+            await relay_to_ark_and_gmod("Serene", body)
 
 async def handle_serene_question(source, username, message):
     serene_key = f"{source}|{username}"
 
     if serene_sessions.get(serene_key):
-        del serene_sessions[serene_key]  # End session
+        del serene_sessions[serene_key]
 
         question = urllib.parse.quote_plus(message)
         p_name = urllib.parse.quote_plus(username)
@@ -96,10 +118,11 @@ async def handle_serene_question(source, username, message):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 body = await resp.text()
-                await send_to_discord("Serene", body, "https://serenekeks.com/serene2.png")
+                await send_to_discord("Serene Branson", body, "https://serenekeks.com/serene2.png")
+                await relay_to_ark_and_gmod("Serene", body)
         return True
     return False
-
+    
 # ───────────────────────────────
 # Flask Endpoint (GMod → ARK + Discord)
 # ───────────────────────────────
