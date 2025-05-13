@@ -9,7 +9,7 @@ import aiohttp
 from threading import Thread
 
 # Constants
-WEBHOOK_URL = "your-discord-webhook-url"
+WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 ARK_AVATAR_URL = "https://serenekeks.com/dis_ark.png"
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
