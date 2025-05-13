@@ -123,9 +123,11 @@ async def debug_get_chat():
                             # Relay to GMod
                             if GMOD_ENABLED:
                                 try:
+                                    print(f"[ARK → GMod] Relaying: {gmod_message}")
                                     with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as gmod_rcon:
                                         gmod_message = f"ARK|{raw_username}|Ark: Survival Unleashed|{message}"
                                         gmod_rcon.command(f"lua_run PrintChatFromConsole([[{gmod_message}]])")
+                                        print("[ARK → GMod] Sent successfully.")
                                 except Exception as e:
                                     print("[ERROR] GMod relay failed:", e)
 
