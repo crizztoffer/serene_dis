@@ -140,8 +140,13 @@ async def debug_get_chat():
 
 @bot.event
 async def on_message(message):
-    if message.channel.id != DISCORD_CHANNEL_ID or message.author.bot or message.webhook_id:
+    # Only proceed if it's the correct channel and not a bot or webhook
+    if message.channel.id != DISCORD_CHANNEL_ID:
         return
+    if message.author.bot:
+        return
+    if message.webhook_id is not None:
+        return  # ✅ Prevent loop: ignore webhook-based messages
 
     author = message.author.display_name
     content = message.content
