@@ -13,6 +13,7 @@ from threading import Thread
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
 ARK_AVATAR_URL = "https://serenekeks.com/dis_ark.png"
 GMOD_AVATAR_URL = "https://serenekeks.com/dis_gmod.png"
+SERENE_AVATAR_URL = "https://serenekeks.com/serene2.png"
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
@@ -28,6 +29,11 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 app = Flask(__name__)
 last_seen_ark_message = None
 last_seen_gmod_message = None
+
+# ───────────────────────────────
+# Serene Session State
+# ───────────────────────────────
+serene_sessions = {}
 
 # ───────────────────────────────
 # Helper Functions
@@ -81,13 +87,14 @@ async def relay_to_ark_and_gmod(username, message):
     if GMOD_RCON_IP and GMOD_RCON_PORT and GMOD_RCON_PASSWORD:
         try:
             with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as gmod_rcon:
-                gmod_msg = f"SERENE|{username}|Serene|{message}"
+                gmod_msg = f"DISCORD|{username}|Serene|{message}"
                 gmod_rcon.command(f"lua_run PrintChatFromConsole([[{gmod_msg}]])")
         except Exception as e:
             print("[ERROR] Serene → GMod failed:", e)
 
-
-serene_sessions = {}
+# ───────────────────────────────
+# Serene Handlers
+# ───────────────────────────────
 
 async def handle_serene_start(source, username, message):
     serene_key = f"{source}|{username}"
@@ -101,15 +108,13 @@ async def handle_serene_start(source, username, message):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             body = await resp.text()
-
-            await send_to_discord("Serene", body, "https://serenekeks.com/serene2.png")
-            await relay_to_ark_and_gmod("Serene", body)  # <-- NEW LINE
+            await send_to_discord("Serene", body, SERENE_AVATAR_URL)
+            await relay_to_ark_and_gmod("Serene", body)
 
 async def handle_serene_question(source, username, message):
     serene_key = f"{source}|{username}"
-
     if serene_sessions.get(serene_key):
-        del serene_sessions[serene_key]  # End session
+        del serene_sessions[serene_key]
 
         question = urllib.parse.quote_plus(message)
         p_name = urllib.parse.quote_plus(username)
@@ -119,13 +124,11 @@ async def handle_serene_question(source, username, message):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 body = await resp.text()
-
-                await send_to_discord("Serene", body, "https://serenekeks.com/serene2.png")
-                await relay_to_ark_and_gmod("Serene", body)  # <-- NEW LINE
-
+                await send_to_discord("Serene", body, SERENE_AVATAR_URL)
+                await relay_to_ark_and_gmod("Serene", body)
         return True
     return False
-    
+
 # ───────────────────────────────
 # Flask Endpoint (GMod → ARK + Discord)
 # ───────────────────────────────
@@ -146,27 +149,21 @@ def handle_gmod():
 
         async def process():
             avatar_url = await get_steam_avatar(steamid) if steamid else GMOD_AVATAR_URL
-        
-            if message.lower() in ("!serene", "/serene"):
-                await handle_serene_start("GMod", username, message)
-            elif await handle_serene_question("GMod", username, message):
-                return
-            else:
-                await send_to_discord(f"[{source}] {username}", message, avatar_url)
-        
-                asyncio.run_coroutine_threadsafe(process(), bot.loop)
-        
-                try:
-                    with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
-                        mcr.command(f"serverchat [GMod] {username}: {message}")
-                except Exception as e:
-                    print("[ERROR] Failed to send to ARK:", e)
-        
-                return jsonify({"status": "ok"}), 200
-        
-            except Exception as e:
-                print("[ERROR] /from_gmod.php:", e)
-                return jsonify({"status": "error", "detail": str(e)}), 500
+            await send_to_discord(f"[{source}] {username}", message, avatar_url)
+
+        asyncio.run_coroutine_threadsafe(process(), bot.loop)
+
+        try:
+            with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
+                mcr.command(f"serverchat [GMod] {username}: {message}")
+        except Exception as e:
+            print("[ERROR] Failed to send to ARK:", e)
+
+        return jsonify({"status": "ok"}), 200
+
+    except Exception as e:
+        print("[ERROR] /from_gmod.php:", e)
+        return jsonify({"status": "error", "detail": str(e)}), 500
 
 # ───────────────────────────────
 # ARK → GMod + Discord
@@ -202,14 +199,7 @@ async def debug_get_chat():
 
                         if is_duplicate(source, raw_username, message):
                             continue
-                        
-                        # Try Serene trigger
-                        if message.lower() in ("!serene", "/serene"):
-                            await handle_serene_start("ARK", raw_username, message)
-                        elif await handle_serene_question("ARK", raw_username, message):
-                            continue  # Serene already replied
-                        
-                        # Else, send normally
+
                         username = f"[{source}] {raw_username}"
                         await send_to_discord(username, message, ARK_AVATAR_URL)
 
@@ -247,7 +237,7 @@ async def on_message(message):
     if await handle_serene_question(source, username, content):
         return
 
-    # Relay to ARK
+    # Relay to ARK and GMod
     discord_message = f"[DISCORD] {username}: {content}"
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
