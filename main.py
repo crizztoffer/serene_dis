@@ -6,6 +6,7 @@ from mcrcon import MCRcon
 from flask import Flask, request, jsonify
 import re
 import aiohttp
+import urllib.parse
 from threading import Thread
 
 # Constants
@@ -64,6 +65,40 @@ async def get_steam_avatar(steamid: str) -> str:
     except Exception as e:
         print("[ERROR] Failed to fetch Steam avatar:", e)
     return GMOD_AVATAR_URL
+
+serene_sessions = {}
+
+async def handle_serene_start(source, username, message):
+    serene_key = f"{source}|{username}"
+    serene_sessions[serene_key] = True
+
+    serene_start = urllib.parse.quote_plus(message)
+    p_name = urllib.parse.quote_plus(username)
+
+    url = f"https://serenekeks.com/serene_bot.php?start={serene_start}&player={p_name}"
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            body = await resp.text()
+            await send_to_discord("Serene", body, "https://serenekeks.com/serene2.png")
+
+async def handle_serene_question(source, username, message):
+    serene_key = f"{source}|{username}"
+
+    if serene_sessions.get(serene_key):
+        del serene_sessions[serene_key]  # End session
+
+        question = urllib.parse.quote_plus(message)
+        p_name = urllib.parse.quote_plus(username)
+
+        url = f"https://serenekeks.com/serene_bot.php?question={question}&player={p_name}"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                body = await resp.text()
+                await send_to_discord("Serene", body, "https://serenekeks.com/serene2.png")
+        return True
+    return False
 
 # ───────────────────────────────
 # Flask Endpoint (GMod → ARK + Discord)
@@ -161,10 +196,20 @@ async def on_message(message):
     if message.channel.id != DISCORD_CHANNEL_ID or message.author.bot:
         return
 
-    content = message.content
+    content = message.content.strip()
     username = message.author.display_name
-    discord_message = f"[DISCORD] {username}: {content}"
+    content_lower = content.lower()
+    source = "DISCORD"
 
+    if content_lower in ("!serene", "/serene"):
+        await handle_serene_start(source, username, content.lstrip("!/"))
+        return
+
+    if await handle_serene_question(source, username, content):
+        return
+
+    # Relay to ARK
+    discord_message = f"[DISCORD] {username}: {content}"
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
             mcr.command(f"serverchat {discord_message}")
