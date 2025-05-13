@@ -55,6 +55,12 @@ def handle_gmod():
         message = data.get("message", "")
         avatar_url = data.get("Avatar_Url", ARK_AVATAR_URL)
 
+        unique_id = f"{username}|{message}"
+        if unique_id == getattr(handle_gmod, "last_msg", None):
+            print("[SKIP] Duplicate GMod message.")
+            return jsonify({"status": "duplicate"}), 200
+        handle_gmod.last_msg = unique_id
+
         print(f"[GMod → Discord+ARK] {username}: {message}")
 
         # Send to Discord
@@ -115,10 +121,8 @@ async def debug_get_chat():
                         if full_message_id != last_seen_ark_message:
                             last_seen_ark_message = full_message_id
 
-                            # To Discord
                             await send_from_ark_to_discord(raw_username, message)
 
-                            # To GMod
                             if GMOD_ENABLED:
                                 try:
                                     with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as gmod_rcon:
@@ -138,17 +142,19 @@ async def debug_get_chat():
 
 @bot.event
 async def on_message(message):
+    print(f"[DEBUG] Discord message from {message.author}: {message.content}")
+
     if message.channel.id != DISCORD_CHANNEL_ID or message.author.bot:
+        print("[DEBUG] Skipped: wrong channel or from bot.")
         return
 
-    # Ignore webhook echo
     if message.webhook_id is not None:
+        print("[DEBUG] Skipped: from webhook.")
         return
 
     author = message.author.display_name
     content = message.content
 
-    # Echo to Discord
     await send_from_discord_to_discord(author, content)
 
     # Relay to ARK
