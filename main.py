@@ -87,7 +87,7 @@ async def relay_to_ark_and_gmod(username, message):
     if GMOD_RCON_IP and GMOD_RCON_PORT and GMOD_RCON_PASSWORD:
         try:
             with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as gmod_rcon:
-                gmod_msg = f"DISCORD|{username}|Serene|{message}"
+                gmod_msg = f"SERENE|{username}|Serene|{message}"
                 gmod_rcon.command(f"lua_run PrintChatFromConsole([[{gmod_msg}]])")
         except Exception as e:
             print("[ERROR] Serene → GMod failed:", e)
@@ -149,9 +149,13 @@ def handle_gmod():
 
         async def process():
             avatar_url = await get_steam_avatar(steamid) if steamid else GMOD_AVATAR_URL
-            await send_to_discord(f"[{source}] {username}", message, avatar_url)
-
-        asyncio.run_coroutine_threadsafe(process(), bot.loop)
+        
+            if message.lower() in ("!serene", "/serene"):
+                await handle_serene_start("GMod", username, message)
+            elif await handle_serene_question("GMod", username, message):
+                return
+            else:
+                await send_to_discord(f"[{source}] {username}", message, avatar_url)
 
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
@@ -199,7 +203,14 @@ async def debug_get_chat():
 
                         if is_duplicate(source, raw_username, message):
                             continue
-
+                        
+                        # Try Serene trigger
+                        if message.lower() in ("!serene", "/serene"):
+                            await handle_serene_start("ARK", raw_username, message)
+                        elif await handle_serene_question("ARK", raw_username, message):
+                            continue  # Serene already replied
+                        
+                        # Else, send normally
                         username = f"[{source}] {raw_username}"
                         await send_to_discord(username, message, ARK_AVATAR_URL)
 
