@@ -34,14 +34,15 @@ def handle_gmod():
     try:
         data = request.get_json()
         username = data.get("username", "Unknown")
-        source = data.get("source", "GMod")
+        source = data.get("source", "Garry's Mod")
         message = data.get("message", "")
+        avatar_url = data.get("Avatar_Url", AVATAR_URL)
 
-        print(f"[GMod → Discord] {username}: {message}")
+        print(f"[GMod → Discord] {username}: {message} (Avatar: {avatar_url})")
 
         # Send to Discord webhook
         asyncio.run_coroutine_threadsafe(
-            send_to_discord(f"({source}) {username}", message),
+            send_to_discord(f"({source}) {username}", message, avatar_url),
             bot.loop
         )
 
@@ -59,10 +60,10 @@ def handle_gmod():
         print("[ERROR] /from_gmod.php:", e)
         return jsonify({"status": "error", "detail": str(e)}), 500
 
-async def send_to_discord(username, message):
+async def send_to_discord(username, message, avatar_url=AVATAR_URL):
     async with aiohttp.ClientSession() as session:
         webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
-        await webhook.send(content=message, username=username, avatar_url=AVATAR_URL)
+        await webhook.send(content=message, username=username, avatar_url=avatar_url)
 
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
@@ -102,7 +103,7 @@ async def debug_get_chat():
                         if message != last_seen_message:
                             last_seen_message = message
 
-                            # Send to Discord
+                            # Send to Discord with Ark avatar
                             await send_to_discord(username, message)
 
                             # Relay to GMod
@@ -170,9 +171,7 @@ async def on_message(message):
 # ───────────────────────────────
 
 if __name__ == '__main__':
-    # Start Flask in background
     flask_thread = Thread(target=run_flask)
     flask_thread.start()
 
-    # Start Discord bot
     asyncio.run(bot.start(DISCORD_TOKEN))
