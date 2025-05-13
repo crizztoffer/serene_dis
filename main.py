@@ -10,7 +10,7 @@ from threading import Thread
 
 # Constants
 WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
-AVATAR_URL = "https://serenekeks.com/dis_ark.png"
+ARK_AVATAR_URL = "https://serenekeks.com/dis_ark.png"
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
@@ -36,9 +36,9 @@ def handle_gmod():
         username = data.get("username", "Unknown")
         source = data.get("source", "Garry's Mod")
         message = data.get("message", "")
-        avatar_url = data.get("Avatar_Url", AVATAR_URL)
+        avatar_url = data.get("Avatar_Url", ARK_AVATAR_URL)  # fallback
 
-        print(f"[GMod → Discord] {username}: {message} (Avatar: {avatar_url})")
+        print(f"[GMod → Discord] {username}: {message}")
 
         # Send to Discord webhook
         asyncio.run_coroutine_threadsafe(
@@ -46,7 +46,7 @@ def handle_gmod():
             bot.loop
         )
 
-        # Send to ARK
+        # Send to ARK RCON
         try:
             with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
                 ark_message = f"[{source}] {username}: {message}"
@@ -60,7 +60,7 @@ def handle_gmod():
         print("[ERROR] /from_gmod.php:", e)
         return jsonify({"status": "error", "detail": str(e)}), 500
 
-async def send_to_discord(username, message, avatar_url=AVATAR_URL):
+async def send_to_discord(username, message, avatar_url):
     async with aiohttp.ClientSession() as session:
         webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
         await webhook.send(content=message, username=username, avatar_url=avatar_url)
@@ -103,8 +103,8 @@ async def debug_get_chat():
                         if message != last_seen_message:
                             last_seen_message = message
 
-                            # Send to Discord with Ark avatar
-                            await send_to_discord(username, message)
+                            # Send to Discord
+                            await send_to_discord(username, message, ARK_AVATAR_URL)
 
                             # Relay to GMod
                             if GMOD_ENABLED:
@@ -121,7 +121,7 @@ async def debug_get_chat():
         await asyncio.sleep(1)
 
 # ───────────────────────────────
-# Optional: Check GMod RCON
+# Optional: GMod RCON Health Check
 # ───────────────────────────────
 
 async def debug_gmod_rcon():
@@ -143,7 +143,7 @@ async def debug_gmod_rcon():
         print(f"[ERROR] GMod RCON connection failed: {e}")
 
 # ───────────────────────────────
-# Discord Events
+# Discord Event Handling
 # ───────────────────────────────
 
 @bot.event
@@ -158,11 +158,27 @@ async def on_message(message):
         return
 
     rcon_message = f"[DISCORD] {message.author.display_name}: {message.content}"
+
+    # Send to ARK
     try:
         with MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT) as mcr:
             mcr.command(f"serverchat {rcon_message}")
     except Exception as e:
         print("[ERROR] Discord → ARK failed:", e)
+
+    # Send to GMod
+    GMOD_RCON_IP = os.getenv("GMOD_RCON_IP")
+    GMOD_RCON_PORT = os.getenv("GMOD_RCON_PORT")
+    GMOD_RCON_PASSWORD = os.getenv("GMOD_RCON_PASS")
+
+    if GMOD_RCON_IP and GMOD_RCON_PORT and GMOD_RCON_PASSWORD:
+        try:
+            GMOD_RCON_PORT = int(GMOD_RCON_PORT)
+            with MCRcon(GMOD_RCON_IP, GMOD_RCON_PASSWORD, port=GMOD_RCON_PORT) as gmod_rcon:
+                gmod_message = f"DISCORD|{message.author.display_name}|Discord|{message.content}"
+                gmod_rcon.command(f"lua_run PrintChatFromConsole([[{gmod_message}]])")
+        except Exception as e:
+            print("[ERROR] Discord → GMod failed:", e)
 
     await bot.process_commands(message)
 
@@ -173,5 +189,4 @@ async def on_message(message):
 if __name__ == '__main__':
     flask_thread = Thread(target=run_flask)
     flask_thread.start()
-
     asyncio.run(bot.start(DISCORD_TOKEN))
