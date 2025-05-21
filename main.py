@@ -10,7 +10,7 @@ import urllib.parse
 from threading import Thread
 
 # Constants
-WEBHOOK_URL = "https://discord.com/api/webhooks/1030875305784655932/CmwhTWO-dWmGjCpm9LYd4nAWXZe3QGxrSUVfpkDYfVo1av1vgLxgzeXRMGLE7PmVOdo8"
+WEBHOOK_URL = "https://discord.com/api/webhooks/" + os.getenv("WEBHOOK_URL")
 ARK_AVATAR_URL = "https://serenekeks.com/dis_ark.png"
 GMOD_AVATAR_URL = "https://serenekeks.com/dis_gmod.png"
 SERENE_AVATAR_URL = "https://serenekeks.com/serene2.png"
